@@ -4,6 +4,7 @@ import { startMqttSubscriber } from './messaging/mqtt.client.ts';
 const PORT = Number(process.env.PORT ?? 3000);
 const MQTT_URL = process.env.MQTT_URL ?? "mqtt://localhost:1883"
 
+
 const MQTT_TOPICS = (process.env.MQTT_TOPICS ?? "zigbee2mqtt/#")
     .split(",")
     .map((s) => s.trim())
