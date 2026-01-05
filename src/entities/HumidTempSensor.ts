@@ -1,4 +1,4 @@
-export type ToiletHumidTempReading = {
+export type HumidTempReading = {
     device: string,
     temperature: number,
     humidity: number,

@@ -1,6 +1,7 @@
 import mqtt from 'mqtt';
 import type { MqttClient, IClientOptions } from 'mqtt';
-import type { ToiletHumidTempReading } from '../entities/ToiletHumidTempSensor.ts';
+import type { HumidTempReading } from '../entities/HumidTempSensor.ts';
+import { insertReading } from '../respositories/sensorReadingRepo.ts';
 
 const enum Devices {
     TOILET_HUMID_TEMP_SENSOR = "zigbee2mqtt/toilet_humid_temp_sensor",
@@ -39,12 +40,12 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
     })
     client.on("message", async (topic, message) => {
         
-        const payload: ToiletHumidTempReading = JSON.parse(message.toString()) as ToiletHumidTempReading;
+        const payload: HumidTempReading = JSON.parse(message.toString()) as HumidTempReading;
         const prefix = "zigbee2mqtt/";
         if(!topic.startsWith(prefix)) return;
         const device = topic.substring(prefix.length);
         if(device !== Devices.TOILET_HUMID_TEMP_SENSOR) return ;
-        const reading: ToiletHumidTempReading = {
+        const reading: HumidTempReading = {
             device,
             temperature: payload.temperature,
             humidity: payload.humidity,
@@ -52,6 +53,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
             linkquality: payload.linkquality,
             ts: payload.ts,
         }
+        await insertReading(reading); // store in DB
         await onMessage({topic, payload: reading, raw: message.toString(), receivedAt: new Date()});
         console.log(`[mqtt] received reading: ${JSON.stringify(reading)}`);
     });
