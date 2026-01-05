@@ -21,7 +21,7 @@ async function main() {
         console.log(`[mqtt] topic: ${topic}}`);
     });
 
-    const shutdown = async ()=>{
+    const shutdown = async () => {
         console.log(`[shutdown] stopping...`);
         await stop();
         await app.close();
@@ -34,7 +34,7 @@ async function main() {
     console.log(`[startup] ready`);
 };
 
-main().catch(err=>{
+main().catch(err => {
     console.error(err);
     process.exit(1);
 })
