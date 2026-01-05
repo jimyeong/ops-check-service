@@ -7,9 +7,11 @@
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "module": "nodenext",
+    "module": "nodeNext",
+    "moduleResolution": "nodeNext",
     "target": "esnext",
     "types": [],
+    "allowImportingTsExtensions": true,
     // For nodejs:
     // "lib": ["esnext"],
     // "types": ["node"],
@@ -19,10 +21,12 @@
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
+    
 
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
+
 
     // Style Options
     // "noImplicitReturns": true,
@@ -40,5 +44,9 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
+    // output options
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "noEmit": false,
   }
 }
