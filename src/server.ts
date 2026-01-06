@@ -15,7 +15,7 @@ const MQTT_TOPICS = (process.env.MQTT_TOPICS ?? "zigbee2mqtt/#")
 // const MQTT_TOPICS = ["zigbee2mqtt/toilet_humid_temp_sensor"];
 const initDB = async () => {
     try{
-        await pool.connect();
+        await pool.query("SELECT 1");
         console.log(`[db] connected`);
     }catch(e){
         console.error(`[db] error: ${e}`);
@@ -28,17 +28,21 @@ async function main() {
     const app = buildApp();
     await app.listen({ port: PORT, host: "0.0.0.0" });
     console.log(`[http] listening on port ${PORT}`);
-    initDB()
+    await initDB()
     const { stop } = startMqttSubscriber({
         url: MQTT_URL,
         topics: MQTT_TOPICS,
     }, async ({ topic, payload, raw, receivedAt }) => {
-        console.log(`[mqtt] topic: ${topic}}`);
+        console.log(`[mqtt] topic: ${topic}`);
         console.log(`[mqtt] payload: ${JSON.stringify(payload)}`);
         console.log(`[mqtt] raw: ${raw}`);
         console.log(`[mqtt] receivedAt: ${receivedAt}`);
         const reading = payload as unknown as HumidTempReading;
-        await insertReading(reading);
+        try{
+            await insertReading(reading);
+        }catch(e){
+            console.error(`[mqtt] failed to insert reading: ${e}`);
+        }
         console.log(`[mqtt] inserted reading: ${JSON.stringify(reading)}`);
     });
 
