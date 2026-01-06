@@ -3,8 +3,9 @@ import type { MqttClient, IClientOptions } from 'mqtt';
 import type { HumidTempReading } from '../entities/HumidTempSensor.ts';
 import { insertReading } from '../respositories/sensorReadingRepo.ts';
 
+const PREFIX = "zigbee2mqtt/";
 const enum Devices {
-    TOILET_HUMID_TEMP_SENSOR = "zigbee2mqtt/toilet_humid_temp_sensor",
+    TOILET_HUMID_TEMP_SENSOR = `toilet_humid_temp_sensor`,
 }
 
 export type MqttSubscriberOptions = {
@@ -30,8 +31,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         reconnectPeriod: 2000,
     } as IClientOptions);
     client.on('connect', () => {
-        console.log("@@what's options.topics", options);
-        client.subscribe("zigbee2mqtt/toilet_humid_temp_sensor", { qos: 0 }, err => {
+        client.subscribe(PREFIX + Devices.TOILET_HUMID_TEMP_SENSOR, { qos: 0 }, err => {
             if (err) {
                 console.error(`Failed to subscribe to topics ${options.topics}: ${err}`);
                 client.emit("error", err)
@@ -39,31 +39,50 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         })
     })
     client.on("message", async (topic, message) => {
-        
-        const payload: HumidTempReading = JSON.parse(message.toString()) as HumidTempReading;
-        const prefix = "zigbee2mqtt/";
-        if(!topic.startsWith(prefix)) return;
-        const device = topic.substring(prefix.length);
-        if(device !== Devices.TOILET_HUMID_TEMP_SENSOR) return ;
-        const reading: HumidTempReading = {
-            device,
-            temperature: payload.temperature,
-            humidity: payload.humidity,
-            battery: payload.battery,
-            linkquality: payload.linkquality,
-            ts: payload.ts,
+        console.log(`[mqtt] message: ${message.toString()}`);
+        try {
+            const payload: HumidTempReading = JSON.parse(message.toString()) as HumidTempReading;
+            if (!topic.startsWith(PREFIX)) return;
+            const device = topic.substring(PREFIX.length);
+            console.log("[device]", device);
+            if (device !== Devices.TOILET_HUMID_TEMP_SENSOR) return;
+            const reading: HumidTempReading = {
+                device,
+                temperature: payload.temperature,
+                humidity: payload.humidity,
+                battery: payload.battery,
+                linkquality: payload.linkquality,
+                receivedAt: new Date(),
+            }
+            await insertReading(reading); // store in DB
+            await onMessage({ topic, payload: reading, raw: message.toString(), receivedAt: new Date() });
+            console.log(`[mqtt] received reading: ${JSON.stringify(reading)}`);
+
+        } catch (e) {
+            // QoS 1 + persistent session + stable clientId
+            // idempotent DB writes
+            // optionally retained messages for "latest state"
+            // data can be lost but later, add mongodb to store the lost data
+
+            // for now Qos 0
+            console.error(`[mqtt] error: ${e}`);
+            console.error(`[mqtt] topic: ${topic}`);
+            // db
+            if(e.code === '23505') {
+                console.error(`[mqtt] duplicate reading`);
+            }else{
+                console.error(`[mqtt] error: ${e}`);
+            }
         }
-        await insertReading(reading); // store in DB
-        await onMessage({topic, payload: reading, raw: message.toString(), receivedAt: new Date()});
-        console.log(`[mqtt] received reading: ${JSON.stringify(reading)}`);
+
     });
-    client.on("error", (err)=>{
+    client.on("error", (err) => {
         console.error(`MQTT error: `, err);
     });
 
-    async function stop(){
-        return new Promise<void>((resolve)=>{
-            client.end(true, {}, ()=>resolve())
+    async function stop() {
+        return new Promise<void>((resolve) => {
+            client.end(true, {}, () => resolve())
         })
     }
     return { client, stop };

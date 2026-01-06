@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@fastify/sensible": "^6.0.4",
+    "dotenv": "^17.2.3",
     "fastify": "^5.6.2",
     "mqtt": "^5.14.1",
     "pg": "^8.16.3",
@@ -14,7 +15,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/server.js",
-    "dev": "tsx watch --config tsconfig.dev.json src/server.ts"
+    "start": "NODE_ENV=production node dist/server.js",
+    "dev": "NODE_ENV=development tsx watch --tsconfig tsconfig.dev.json src/server.ts"
   }
 }

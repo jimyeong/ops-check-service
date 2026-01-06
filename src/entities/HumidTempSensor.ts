@@ -1,8 +1,10 @@
-export type HumidTempReading = {
+ type HumidTempReading = {
     device: string,
     temperature: number,
     humidity: number,
     battery: number,
     linkquality: string,
-    ts: string,
+    receivedAt: Date,
 }
+
+export type { HumidTempReading }
