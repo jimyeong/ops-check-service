@@ -5,6 +5,7 @@ export async function readingRoutes(app: FastifyInstance) {
         return { data: [] }
     });
     app.post("/readings", async (request) => {
+
         return { ok: true, receicved: request.body }
     })
 }
