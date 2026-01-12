@@ -1,6 +1,50 @@
-export async function insertReading(client, reading) {
-    await client.query(`
-         INSERT INTO humid_temp_readings (device_id, temperature, humidity, battery, linkquality)
-            VALUES ($1, $2, $3, $4, $5)
-    `, [reading.device_id, reading.temperature, reading.humidity, reading.battery, reading.linkquality]);
+import type { HumidTempReading } from '../types.ts';
+import type { PoolClient, QueryResult } from 'pg';
+export async function insertReading(client: PoolClient, reading: HumidTempReading): Promise<HumidTempReading | null> {
+    let result: QueryResult<HumidTempReading> | null = null;
+    try {
+        if (!reading.idempotency_key) {
+            throw new Error("idempotency_key is required");
+        }
+        result = await client.query<HumidTempReading>(`
+        INSERT INTO humid_temp_readings (
+           device_id,
+           temperature,
+           humidity, 
+           battery,
+           linkquality,
+           comfort_humidity_min,
+           comfort_temperature_max,
+           comfort_humidity_max,
+           comfort_temperature_min,
+           humidity_calibration,
+           temperature_calibration,
+           temperature_units,
+           received_at,
+           idempotency_key
+        )
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+           ON CONFLICT(device_id, idempotency_key) DO NOTHING
+           RETURNING *
+   `, [
+            reading.device_id,
+            reading.temperature ?? null,
+            reading.humidity ?? null,
+            reading.battery ?? null,
+            reading.linkquality ?? null,
+            reading.comfort_humidity_min ?? null,
+            reading.comfort_temperature_max ?? null ,
+            reading.comfort_humidity_max ?? null,
+            reading.comfort_temperature_min ?? null,
+            reading.humidity_calibration ?? null,
+            reading.temperature_calibration ?? null,
+            reading.temperature_units ?? null,
+            reading.receivedAt ?? new Date(),
+            reading.idempotency_key,
+        ]);
+    } catch (e) {
+        console.error(`Failed to insert reading: ${e}`);
+        throw e;
+    }
+    return result.rows[0] ?? null;
 }
