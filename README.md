@@ -122,6 +122,35 @@ The backend:
 MQTT is treated purely as a **transport mechanism**.  
 All business logic and data ownership remain within the backend service.
 
+### Reliability and Idempotency (QoS1 Handling)
+
+The MQTT subscription is configured with **QoS 1 (at-least-once delivery)**.  
+This guarantees that each message is delivered at least once, but it may be delivered **more than once** in the case of network retries or broker reconnection.
+
+To prevent duplicated sensor readings from being stored, the backend implements **idempotent persistence** at the database layer:
+
+- For each incoming MQTT message, a deterministic `idempotency_key` is generated from the message content (e.g. hash of `topic + payload`).
+- Each reading is stored with `(device_id, idempotency_key)`.
+- A database-level unique constraint enforces that the same logical message can be persisted only once.
+
+```sql
+UNIQUE (device_id, idempotency_key)
+```
+
+Insert operations use:
+
+```sql
+ON CONFLICT (device_id, idempotency_key) DO NOTHING
+```
+
+This design ensures:
+
+- **At-least-once delivery** from MQTT (QoS1)
+- **Exactly-once persistence** in PostgreSQL
+- Safe handling of broker retries, client reconnects, and message redelivery without creating duplicate historical records
+
+The result is a robust ingestion pipeline where transport-level duplication is absorbed by deterministic, idempotent storage semantics.
+
 ### Example MQTT payload
 
 ```json
