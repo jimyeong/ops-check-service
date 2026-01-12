@@ -9,8 +9,8 @@ describe("sensorReadingRepo insertReading (idempotency)", () => {
     try {
       await client.query("BEGIN");
 
-      // 준비: 테스트용 device 만들기
-      const deviceId = BigInt(Date.now()); // 충분히 유니크
+      // create a device
+      const deviceId = BigInt(Date.now()); // enough unique
       await ensureDeviceExists(
         client,
         deviceId,
@@ -19,7 +19,7 @@ describe("sensorReadingRepo insertReading (idempotency)", () => {
         "test_humid_sensor"
       );
 
-      // 같은 메시지(=같은 idempotency_key) 2번
+      // same message (same idempotency_key) twice
       const baseReading = {
         device_id: deviceId,
         temperature: 22.7,
@@ -34,16 +34,16 @@ describe("sensorReadingRepo insertReading (idempotency)", () => {
         temperature_calibration: 0,
         temperature_units: "celsius",
         receivedAt: new Date(),
-        idempotency_key: "topic:payload-hash-123", // 테스트용 고정 키
+        idempotency_key: "topic:payload-hash-123", // fixed key for testing
       };
 
       const r1 = await insertReading(client, baseReading as any);
       expect(r1).not.toBeNull();
 
       const r2 = await insertReading(client, baseReading as any);
-      expect(r2).toBeNull(); // 중복이면 DO NOTHING -> RETURNING 없음 -> null
+      expect(r2).toBeNull(); // if duplicated, DO NOTHING -> RETURNING is empty -> null
 
-      // 실제로 1개만 있는지 DB 확인
+      // check if there is only one record in the database
       const count = await client.query<{ c: string }>(
         `
         SELECT COUNT(*)::text AS c
@@ -55,7 +55,7 @@ describe("sensorReadingRepo insertReading (idempotency)", () => {
 
       expect(count.rows[0].c).toBe("1");
     } finally {
-      // 테스트 데이터는 롤백해서 DB 더럽히지 않음
+      // rollback the test data to avoid polluting the database
       await client.query("ROLLBACK");
       client.release();
     }
