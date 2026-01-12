@@ -3,13 +3,17 @@ import type { MqttClient, IClientOptions } from 'mqtt';
 import type { HumidTempReading } from '../core/db/types.ts';
 import { ingestReading } from '../services/ingestSensorReading.ts';
 import { Devices } from '../constants';
+import { insertDeviceIdentifier, getDeviceIdentifier } from '../core/db/repositories/deviceIdentifiersRepo.ts';
+import { getDevice } from '../core/db/repositories/devicesRepo.ts';
 const PREFIX = "zigbee2mqtt/";
+import { saveInboxMessage } from '../core/db/repositories/inboxMessagesRepo.ts';
+import crypto from "crypto";
 
 
 export type MqttSubscriberOptions = {
     url: string;
     topics: string[]
-    cleintId?: string;
+    clientId?: string;
     username?: string
     password?: string
 }
@@ -23,37 +27,92 @@ export type MqttMessageHandler = (args: {
 
 export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: MqttMessageHandler): { client: MqttClient; stop: () => Promise<void> } {
     const client = mqtt.connect(options.url, {
-        clientId: options.cleintId ?? `ops-check-service-${Math.random().toString(16).slice(2)}`,
+        clientId: options.clientId ?? `ops-check-service`,
         username: options.username,
         password: options.password,
         reconnectPeriod: 2000,
+        clean: false,
     } as IClientOptions);
-    client.on('connect', () => {
-        client.subscribe(PREFIX + Devices.TOILET_HUMID_TEMP_SENSOR, { qos: 0 }, err => {
+    client.on('connect', async () => {
+        // 
+        const topicsToSubscribe = (options.topics?.length ? options.topics : [PREFIX + Devices.TOILET_HUMID_TEMP_SENSOR]);
+        client.subscribe(topicsToSubscribe, { qos: 1 }, async (err, granted) => {
             if (err) {
-                console.error(`Failed to subscribe to topics ${options.topics}: ${err}`);
-                client.emit("error", err)
+                console.error(`Failed to subscribe to topics ${topicsToSubscribe.join(", ")}: ${err}`);
+                client.emit("error", err);
+                return;
             }
-        })
+
+            console.log("subscribed", granted);
+
+            try {
+                // Ensure the device identifier exists (id_type='topic_name', id_value='<device name>').
+                const deviceRow = await getDevice(Devices.TOILET_HUMID_TEMP_SENSOR);
+                if (deviceRow === null) {
+                    console.error(`Device not found`);
+                    return;
+                }
+
+                const alreadyExists = await insertDeviceIdentifier(
+                    deviceRow.id,
+                    "topic_name",
+                    Devices.TOILET_HUMID_TEMP_SENSOR,
+                );
+
+                if (alreadyExists) console.log("existing device identifier");
+            } catch (e) {
+                console.error(`Failed to insert device identifier: ${e}`);
+            }
+        });
+        client.publish(
+            "ops/alert",
+            JSON.stringify({ device_id: 42, type: "HUMIDITY_HIGH" }),
+            { qos: 1, retain: false }, (err) => {
+                if (err) console.error(`publish err`, err);
+            })
     })
     client.on("message", async (topic, message) => {
         console.log(`[mqtt] message: ${message.toString()}`);
+        const msg = message.toString("utf-8");
+        const idempotency_key = crypto.createHash('sha256').update(topic + ":" + msg).digest('hex');
         try {
-            const payload: HumidTempReading = JSON.parse(message.toString()) as HumidTempReading;
+            // filterings
             if (!topic.startsWith(PREFIX)) return;
+
             const device = topic.substring(PREFIX.length);
-            console.log("[device]", device);
             if (device !== Devices.TOILET_HUMID_TEMP_SENSOR) return;
+
+            // Lookup by device name (matches the inserted id_value).
+            const identifier = await getDeviceIdentifier("topic_name", device);
+            if (identifier === null) {
+                console.error(`Device identifier not found, IGNORE the message, topic: ${topic}`);
+                return;
+            }
+            const device_id = identifier.device_id;
+
+            const payload: HumidTempReading = JSON.parse(msg) as HumidTempReading;
+
+            console.log("[device]", device);
+            const receivedAt = new Date();
             const reading: HumidTempReading = {
-                device_id: payload.device_id,
+                idempotency_key: idempotency_key,
+                device_id: device_id,
                 temperature: payload.temperature,
                 humidity: payload.humidity,
                 battery: payload.battery,
                 linkquality: payload.linkquality,
-                receivedAt: new Date(),
+                receivedAt: receivedAt,
+                comfort_humidity_min: payload.comfort_humidity_min,
+                comfort_temperature_max: payload.comfort_temperature_max,
+                comfort_humidity_max: payload.comfort_humidity_max,
+                comfort_temperature_min: payload.comfort_temperature_min,
+                humidity_calibration: payload.humidity_calibration,
+                temperature_calibration: payload.temperature_calibration,
+                temperature_units: payload.temperature_units,
+                update: payload.update,
             }
             await ingestReading(reading);
-            await onMessage({ topic, payload: reading, raw: message.toString(), receivedAt: new Date() });
+            await onMessage({ topic, payload: reading, raw: msg, receivedAt: receivedAt });
             console.log(`[mqtt] received reading: ${JSON.stringify(reading)}`);
 
         } catch (e) {
@@ -61,18 +120,15 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
             // idempotent DB writes
             // optionally retained messages for "latest state"
             // data can be lost but later, add mongodb to store the lost data
-
-            // for now Qos 0
-            console.error(`[mqtt] error: ${e}`);
-            console.error(`[mqtt] topic: ${topic}`);
-            // db
-            if(e.code === '23505') {
-                console.error(`[mqtt] duplicate reading`);
-            }else{
-                console.error(`[mqtt] error: ${e}`);
+            let jsonPayload: unknown;
+            try { jsonPayload = JSON.parse(msg); } catch (e) {
+                console.error(`[mqtt] failed to parse message: ${e}`);
+                jsonPayload = { raw: msg };
             }
+            const result = await saveInboxMessage(jsonPayload, idempotency_key);
+            if (result) console.log("saved inbox message");
+            else console.log("duplicate inbox message");
         }
-
     });
     client.on("error", (err) => {
         console.error(`MQTT error: `, err);
