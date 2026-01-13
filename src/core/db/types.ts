@@ -32,3 +32,12 @@ export type DeviceIdentifier = {
     id_value: string,
     created_at: Date,
 }
+export type OutboxEvent = {
+    id: string,
+    event_type: string,
+    payload: unknown,
+    status: "pending" | "processed" | "failed",
+    idempotency_key: string,
+    processed_at: Date | null,
+    created_at: Date,
+}
