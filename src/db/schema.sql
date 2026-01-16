@@ -57,12 +57,19 @@ ON inbox_messages(received_at DESC);
 
 CREATE TABLE IF NOT EXISTS outbox_events(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_type TEXT NOT NULL
+    event_type TEXT NOT NULL, -- topic`
     payload JSONB NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
+    attempts INT NOT NULL,
     processed_at TIMESTAMPTZ,
     idempotency_key TEXT NOT NULL UNIQUE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    locked_at TIMESTAMPTZ,
+    last_error TEXT,
+    CONSTRAINT outbox_status_check
+    CHECK (status IN ('pending', 'processing', 'done', 'failed'))
 )
+
 
 CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_events(status, created_at);

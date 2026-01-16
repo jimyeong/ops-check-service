@@ -1,11 +1,12 @@
+import { JsonValue } from '../../../types/json.ts';
 import { pool } from '../../db/pool.ts';
 import type { OutboxEvent } from '../types.ts';
 
-type Json = | string | number | boolean | null | { [key: string]: Json } | Json[];
 
-type OutboxEventInput = {
+
+export type OutboxEventInput = {
     event_type: string,
-    payload: Json,
+    payload: JsonValue,
     idempotency_key: string,
 }
 

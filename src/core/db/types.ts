@@ -1,3 +1,5 @@
+import { JsonValue } from "../../types/json"
+
 export type HumidTempReading = {
     idempotency_key: string,
     device_id: bigint,
@@ -35,9 +37,13 @@ export type DeviceIdentifier = {
 export type OutboxEvent = {
     id: string,
     event_type: string,
-    payload: unknown,
+    payload: JsonValue,
     status: "pending" | "processed" | "failed",
     idempotency_key: string,
     processed_at: Date | null,
+    attempts: number,
     created_at: Date,
+    available_at: Date,
+    locked_at: Date,
+    last_error: string,
 }
