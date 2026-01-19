@@ -1,4 +1,27 @@
 
+CREATE TABLE users (
+  user_id bigserial PRIMARY KEY,
+  email text UNIQUE,
+  phone_number text UNIQUE NOT NULL,
+  oauth_provider text NOT NULL,
+  oauth_id text,
+  UNIQUE (oauth_provider, oauth_id)
+);
+
+CREATE TABLE subscriptions (
+  subscription_id bigserial PRIMARY KEY,
+  user_id bigint NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  event text NOT NULL,
+  notification_channel text NOT NULL
+    CHECK (notification_channel IN ('sms', 'email')),
+  enabled boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, event, notification_channel)
+);
+
+CREATE INDEX idx_subscriptions_event_channel_enabled
+  ON subscriptions (event, notification_channel, enabled);
 
 CREATE TABLE humid_temp_readings (
   id BIGINT PRIMARY KEY,
