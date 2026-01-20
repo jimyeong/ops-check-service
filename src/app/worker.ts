@@ -2,6 +2,7 @@ import { Pool, PoolClient } from "pg";
 import { OutboxEvent } from "../core/db/types";
 import { JsonValue } from "../types/json";
 import { getErrorMessage } from "../utils/errors";
+import { createSNSClient, publishMessage } from "../core/aws/clients/snsClient";
 export function startOutboxWorker(pool: Pool) {
     const BATCH_SIZE = 50;
     const SLEEP_MS = 500;
@@ -54,7 +55,7 @@ async function claimBatch(client: PoolClient, limit: number): Promise<OutboxEven
         SET status = 'processing', locked_at = now()
         FROM picked
         WHERE e.id = picked.id
-        RETURNING e.id, e.topic, e.payload, e.attempts;
+        RETURNING e.id, e.event_type, e.payload, e.attempts;
     `
     const { rows } = await client.query(q, [limit])
     return rows
@@ -83,7 +84,10 @@ async function markRetry(client: PoolClient, id: string, attempts: number, lastE
 }
 
 async function publish(topic: string, payload: JsonValue) {
-    console.log("publishing", topic, payload)
+    const client = createSNSClient()
+    const message = JSON.stringify(payload)
+    const result = await publishMessage(client, message)
+    console.log("publishing", topic, payload, result)
 }
 
 function sleep(ms: number): Promise<void> {

@@ -82,12 +82,12 @@ CREATE TABLE IF NOT EXISTS outbox_events(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_type TEXT NOT NULL, -- topic`
     payload JSONB NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
     attempts INT NOT NULL,
     processed_at TIMESTAMPTZ,
     idempotency_key TEXT NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    status TEXT NOT NULL DEFAULT 'pending',
     locked_at TIMESTAMPTZ,
     last_error TEXT,
     CONSTRAINT outbox_status_check
