@@ -1,5 +1,3 @@
-
-
 # Ops Check Service
 
 A backend service for ingesting, storing, and reasoning over environmental and operational signals, designed to run reliably in imperfect, real‑world conditions.
@@ -180,6 +178,25 @@ The tests verify that:
 - Retries never violate exactly‑once semantics
 
 These tests validate the system as a **long‑running operational service**, not just a collection of independent components.
+
+---
+
+## Deployment & Real‑World Validation Plan (Home Lab)
+
+The next step for this project is to move beyond local development and validate the system in a real, continuously running environment.
+
+Planned setup:
+
+- Package the entire service using **Docker**
+- Deploy it to a **home mini‑server** (always‑on)
+- Connect it to real physical sensors (humidity, temperature, etc.)
+- Run the system 24/7 to observe:
+  - long‑term stability
+  - message duplication under QoS1
+  - worker recovery after restarts
+  - notification correctness under real environmental changes
+
+This stage is intended to verify that the architecture is not only logically correct, but also **operationally resilient** under real network noise, hardware imperfections, and time‑dependent behaviour.
 
 ---
 
