@@ -60,7 +60,7 @@ Sensor → MQTT (QoS1) → Ingestion API → PostgreSQL
 - **Database:** PostgreSQL
 - **Messaging:** MQTT (QoS1)
 - **Testing:** Vitest (Vite test runner), flow‑based E2E‑style suites
-- **Deployment:** Railway
+- **Deployment:** Home Mini Server
 - **Style:** Long‑running, reliability‑oriented backend service
 
 ---
