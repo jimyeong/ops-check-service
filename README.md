@@ -1,42 +1,56 @@
-# ops-check-service
 
-A backend service for ingesting, storing, and querying **environmental and operational data** from home and workplace control systems.
 
-The service is built with **Node.js**, **TypeScript**, **Fastify**, and **PostgreSQL**, and consumes sensor data asynchronously via **MQTT**.  
-The focus of the project is **backend system design, data modelling, and operational reliability**, rather than hardware control or UI development.
+# Ops Check Service
 
----
-
-## Overview
-
-Home and workplace control systems often rely on repeated manual checks or loosely structured sensor data
-(for example temperature, humidity, or basic safety status).
-
-This project models those signals as **structured, time-based records** so that:
-
-- environmental data is captured consistently
-- historical state can be queried reliably
-- operational decisions are based on stored data rather than transient readings
-
-The backend treats external systems (such as sensors) as **data producers**, and focuses on **validation, persistence, and querying** of operational data.
+A backend service for ingesting, storing, and reasoning over environmental and operational signals, designed to run reliably in imperfect, real‑world conditions.
 
 ---
 
-## Architecture Summary
-```
-SNZB-02D Sensor  
-↓(Zigbee)  
-Sonoff Zigbee 3.0 USB Dongle Plus (-P)  
-↓(Zigbee2MQTT)  
-MQTT Broker  
-↓   
-ops-check-service (Fastify)  
-↓PostgreSQL   
-```
+## Why this project exists
 
-- Zigbee devices are managed externally via Zigbee2MQTT
-- This service **does not control devices**
-- MQTT is treated as an **input channel**, similar to HTTP
+This project began from a personal and concrete problem.
+
+I live in an old flat, and the bathroom has no proper ventilation. Moisture accumulates easily, and over time mould started to grow. One day, I discovered that my **cherished towels (아끼는 수건)** — items I carefully look after — had been contaminated by mould.
+
+In absolute terms, it was a small loss. But it revealed a larger truth:  
+environmental problems are often invisible, slow, and silent. By the time damage becomes visible, it is already too late.
+
+Instead of treating it as a one‑off inconvenience, I decided to approach it as an engineering problem:
+
+- Continuously observe the environment (humidity, temperature, etc.)
+- Store signals reliably over long periods
+- Detect risky conditions early
+- Trigger notifications before irreversible damage occurs
+
+This service is the backend foundation for that idea.
+
+---
+
+## Core focus
+
+This is not a hardware or UI project.  
+The focus is on **backend system design under real operational constraints**:
+
+- Unreliable networks (MQTT, QoS1, duplicate delivery)
+- Long‑running processes
+- Asynchronous ingestion and background workers
+- Idempotency and exactly‑once semantics at the data layer
+- Race‑condition‑free task claiming
+- End‑to‑end consistency from ingestion to notification
+
+---
+
+## Architecture Overview
+
+```
+Sensor → MQTT (QoS1) → Ingestion API → PostgreSQL
+                                   ↓
+                           Polling Notification Worker
+                                   ↓
+                              Atomic Claim
+                                   ↓
+                                Delivery
+```
 
 ---
 
@@ -44,119 +58,134 @@ ops-check-service (Fastify)
 
 - **Runtime:** Node.js
 - **Language:** TypeScript
-- **Web Framework:** Fastify
+- **Framework:** Fastify
 - **Database:** PostgreSQL
-- **Database Driver:** pg
-- **Messaging:** MQTT
-- **Deployment:** Railway (managed platform)
-- **Architecture Style:** serverless-style managed backend
+- **Messaging:** MQTT (QoS1)
+- **Testing:** Vitest (Vite test runner), flow‑based E2E‑style suites
+- **Deployment:** Railway
+- **Style:** Long‑running, reliability‑oriented backend service
 
 ---
 
 ## Project Structure
+
 ```
 src/
-├─ app.ts              # Fastify app setup
-├─ server.ts           # Application entry point
+├─ app.ts                 # Fastify app setup
+├─ server.ts              # Application entry point
 │
-├─ config/             # Environment configuration
+├─ config/                # Environment configuration
 │  └─ env.ts
 │
-├─ db/                 # PostgreSQL-specific concerns
-│  ├─ pool.ts          # Connection pool
-│  └─ migrations/      # SQL migrations
+├─ db/
+│  ├─ pool.ts             # PostgreSQL connection pool
+│  └─ migrations/         # Schema and evolution
 │
-├─ entities/           # Core domain entities (not ORM models)
-│  ├─ location.ts
-│  └─ reading.ts
+├─ entities/              # Pure domain models
+│  ├─ device.ts
+│  ├─ reading.ts
+│  └─ notification.ts
 │
-├─ repositories/       # Data access layer (SQL + mapping)
-│  └─ readings.repo.ts
+├─ repositories/          # Persistence & idempotency logic
 │
-├─ services/           # Business logic and data composition
-│  └─ readings.service.ts
+├─ services/              # Domain orchestration
 │
-├─ routes/             # HTTP API layer
-│  └─ readings.routes.ts
+├─ messaging/             # MQTT consumers
 │
-├─ messaging/          # Asynchronous input adapters
-│  └─ mqtt.client.ts
+├─ workers/               # Polling & claiming workers
+│
+├─ tests/
+│  ├─ integration/
+│  └─ flows/              # End‑to‑end business flow suites
 │
 └─ utils/
 ```
 
 ---
 
-## Domain Model
+## MQTT Ingestion & Idempotency
 
-### Location
-Represents a controlled environment, such as:
-- a home
-- an office
-- a specific room or workspace
+MQTT is configured with **QoS 1 (at‑least‑once delivery)**.  
+Duplicate messages are therefore expected and treated as normal behaviour.
 
-### Reading
-Represents an immutable, time-stamped observation, for example:
-- temperature
-- humidity
-- battery level
-- sensor-reported status
+To guarantee **exactly‑once persistence** at the database layer:
 
-Each reading:
-- is associated with a location
-- originates from an external system
-- is stored as historical data
+- Each incoming message is assigned a deterministic `idempotency_key`
+- A unique constraint enforces logical uniqueness
+- Inserts use `ON CONFLICT DO NOTHING`
+
+This ensures:
+
+- Network retries are harmless
+- Broker redelivery does not create duplicates
+- Historical data remains consistent and queryable
 
 ---
 
-## MQTT Integration
+## Notification System
 
-Sensor data is ingested asynchronously via **MQTT**.
+### Polling Worker
 
-The backend:
-- subscribes to configured MQTT topics
-- validates incoming messages
-- maps payloads into domain entities
-- persists them to PostgreSQL
+Notifications are produced by a background worker that periodically polls the database for conditions that require action (threshold breaches, stale readings, etc.).
 
-MQTT is treated purely as a **transport mechanism**.  
-All business logic and data ownership remain within the backend service.
+### Atomic Claiming Model
 
-### Reliability and Idempotency (QoS1 Handling)
+Each notification record follows a strict lifecycle:
 
-The MQTT subscription is configured with **QoS 1 (at-least-once delivery)**.  
-This guarantees that each message is delivered at least once, but it may be delivered **more than once** in the case of network retries or broker reconnection.
-
-To prevent duplicated sensor readings from being stored, the backend implements **idempotent persistence** at the database layer:
-
-- For each incoming MQTT message, a deterministic `idempotency_key` is generated from the message content (e.g. hash of `topic + payload`).
-- Each reading is stored with `(device_id, idempotency_key)`.
-- A database-level unique constraint enforces that the same logical message can be persisted only once.
-
-```sql
-UNIQUE (device_id, idempotency_key)
+```
+PENDING → CLAIMED → SENT / FAILED
 ```
 
-Insert operations use:
+Claiming is performed atomically inside a transaction:
 
-```sql
-ON CONFLICT (device_id, idempotency_key) DO NOTHING
+- A worker selects rows in `PENDING`
+- Transitions them to `CLAIMED`
+- Only the worker that successfully updates the row owns it
+- Other workers will skip already‑claimed rows
+
+This guarantees:
+
+- Exactly‑once delivery at the business level
+- Safe parallel execution of multiple workers
+- No duplicate notifications
+- No lost or partially processed tasks, even on crashes or restarts
+
+---
+
+## End‑to‑End Flow Testing
+
+Tests are written with **Vitest** and organised as full **business‑flow suites**, not isolated unit tests.
+
+Each suite exercises the complete operational path:
+
+```
+Sensor Payload
+ → MQTT Publish
+ → Ingestion API
+ → Database Persistence
+ → Polling Worker
+ → Atomic Claim
+ → Notification Dispatch
 ```
 
-This design ensures:
+The tests verify that:
 
-- **At-least-once delivery** from MQTT (QoS1)
-- **Exactly-once persistence** in PostgreSQL
-- Safe handling of broker retries, client reconnects, and message redelivery without creating duplicate historical records
+- Duplicate MQTT messages do not create duplicate rows
+- Polling selects only eligible `PENDING` records
+- Claiming is atomic and exclusive
+- Status transitions are linear and consistent
+- Retries never violate exactly‑once semantics
 
-The result is a robust ingestion pipeline where transport-level duplication is absorbed by deterministic, idempotent storage semantics.
+These tests validate the system as a **long‑running operational service**, not just a collection of independent components.
 
-### Example MQTT payload
+---
 
-```json
-{
-  "temperature": 22.4,
-  "humidity": 48,
-  "battery": 92,
-  "timestamp": "2026-01-05T10:15:00Z"
-}
+## Philosophy
+
+This project is built around one idea:
+
+> Real systems fail quietly, slowly, and in messy ways.  
+> Good backend design makes those failures observable, contained, and recoverable.
+
+It started from a mould‑stained, cherished towel —  
+and became a study of reliability, idempotency, and operational truth.
