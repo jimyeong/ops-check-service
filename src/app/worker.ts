@@ -2,7 +2,7 @@ import { Pool, PoolClient } from "pg";
 import { OutboxEvent } from "../core/db/types";
 import { JsonValue } from "../types/json";
 import { getErrorMessage } from "../utils/errors";
-import { createSNSClient, publishMessage } from "../core/aws/clients/snsClient";
+import * as snsClient from "../core/aws/clients/snsClient";
 export function startOutboxWorker(pool: Pool) {
     const BATCH_SIZE = 50;
     const SLEEP_MS = 500;
@@ -15,9 +15,13 @@ export function startOutboxWorker(pool: Pool) {
                     await sleep(SLEEP_MS)
                     continue;
                 }
+
                 for (const event of events) {
                     try {
+
+                        console.log("PUBLISHING MESSAGE", event)
                         await publish(event.event_type, event.payload as JsonValue)
+                        console.log("PUBLISHING MESSAGE", event)
                         await markDone(client, event.id);
                     } catch (e) {
                         const msg = getErrorMessage(e)
@@ -25,14 +29,15 @@ export function startOutboxWorker(pool: Pool) {
                     }
                 }
             } catch (e) {
+                console.log("4@@@", e)
                 const msg = getErrorMessage(e)
                 console.log(msg)
-            }finally{
+            } finally {
                 client.release()
             }
         }
     }
-    loop().catch(e=>{
+    loop().catch(e => {
         console.error("Outbox worker crashhed", e);
         process.exit(1);
     })
@@ -62,9 +67,14 @@ async function claimBatch(client: PoolClient, limit: number): Promise<OutboxEven
 }
 
 async function markDone(client: PoolClient, id: string) {
+    // const q = `
+    //     DELETE FROM outbox_events
+    //     WHERE id=$1
+    // `
     const q = `
-        DELETE FROM outbox_events
-        WHERE id=$1
+        UPDATE outbox_events
+        SET status = 'done', processed_at = now()
+        WHERE id = $1
     `
     client.query(q, [id])
 }
@@ -80,16 +90,25 @@ async function markRetry(client: PoolClient, id: string, attempts: number, lastE
     `
     const nextAttempts = attempts + 1
     const delaySeconds = Math.min(60, 2 ** Math.min(nextAttempts, 6)) // backoff capped
-    await client.query(q, [id, nextAttempts, delaySeconds, lastError]);
+    try {
+        await client.query(q, [id, nextAttempts, delaySeconds, lastError]);
+    } catch (e) {
+        console.log("error marking retry", e)
+        throw e
+    }
 }
 
 async function publish(topic: string, payload: JsonValue) {
-    const client = createSNSClient()
+    const client = snsClient.createSNSClient()
     const message = JSON.stringify(payload)
-    const result = await publishMessage(client, message)
-    console.log("publishing", topic, payload, result)
+    try {
+        const result = await snsClient.publishMessage(client, message)
+    } catch (e) {
+        console.log("error publishing", e)
+        throw e
+    }
 }
 
-function sleep(ms: number): Promise<void> {
+export function sleep(ms: number): Promise<void> {
     return new Promise((resolve, reject) => setTimeout(resolve, ms))
 }

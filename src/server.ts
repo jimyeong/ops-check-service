@@ -5,7 +5,7 @@ import { pool } from './core/db/pool.ts';
 import { initApp } from './app/initApp.ts';
 import { Devices } from './constants/index.ts';
 import { ingestReading } from './services/ingestSensorReading.ts';
-import { insertOutboxEvent } from "./core/db/repositories/outboxEventRapo.ts";
+import { startOutboxWorker } from "./app/worker.ts";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const MQTT_URL = process.env.MQTT_URL ?? "mqtt://localhost:1883"
@@ -25,10 +25,11 @@ const initDB = async () => {
 }
 
 async function main() {
-    const app = initApp();
+    const app = initApp(); // app starts here
     await app.listen({ port: PORT, host: "0.0.0.0" });
     console.log(`[http] listening on port ${PORT}`);
-    await initDB()
+    await initDB() // db connection established here
+    startOutboxWorker(pool); // worker starts here
     const { stop } = startMqttSubscriber({
         url: MQTT_URL,
         topics: MQTT_TOPICS,
