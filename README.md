@@ -10,7 +10,7 @@ A backend service for ingesting, storing, and reasoning over environmental and o
 
 This project began from a personal and concrete problem.
 
-I live in an old flat, and the bathroom has no proper ventilation. Moisture accumulates easily, and over time mould started to grow. One day, I discovered that my **cherished towels (아끼는 수건)** — items I carefully look after — had been contaminated by mould.
+I live in an old flat, and the bathroom has no proper ventilation. Moisture accumulates easily, and over time mould started to grow. One day, I discovered that my **cherished towels** — items I carefully look after — had been contaminated by mould.
 
 In absolute terms, it was a small loss. But it revealed a larger truth:  
 environmental problems are often invisible, slow, and silent. By the time damage becomes visible, it is already too late.
