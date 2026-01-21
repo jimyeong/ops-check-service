@@ -71,34 +71,37 @@ Sensor → MQTT (QoS1) → Ingestion API → PostgreSQL
 
 ```
 src/
-├─ app.ts                 # Fastify app setup
-├─ server.ts              # Application entry point
+├─ app/
+│  ├─ initApp.ts
+│  └─ worker.ts
 │
-├─ config/                # Environment configuration
-│  └─ env.ts
+├─ core/
+│  ├─ aws/
+│  ├─ db/
+│  │  ├─ repositories/
+│  │  ├─ pool.ts
+│  │  └─ types.ts
 │
 ├─ db/
-│  ├─ pool.ts             # PostgreSQL connection pool
-│  └─ migrations/         # Schema and evolution
+│  └─ schema.sql
 │
-├─ entities/              # Pure domain models
-│  ├─ device.ts
-│  ├─ reading.ts
-│  └─ notification.ts
+├─ messaging/
+│  └─ mqtt.client.ts
 │
-├─ repositories/          # Persistence & idempotency logic
+├─ routes/
+│  └─ readings.routes.ts
 │
-├─ services/              # Domain orchestration
+├─ services/
+│  └─ ingestSensorReading.ts
 │
-├─ messaging/             # MQTT consumers
+├─ types/
+│  └─ json.ts
 │
-├─ workers/               # Polling & claiming workers
+├─ utils/
+│  └─ errors.ts
 │
-├─ tests/
-│  ├─ integration/
-│  └─ flows/              # End‑to‑end business flow suites
-│
-└─ utils/
+├─ bootstrap.ts
+└─ server.ts
 ```
 
 ---
