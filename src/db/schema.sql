@@ -1,12 +1,35 @@
 
+CREATE TABLE users (
+  user_id bigserial PRIMARY KEY,
+  email text UNIQUE,
+  phone_number text UNIQUE NOT NULL,
+  oauth_provider text NOT NULL,
+  oauth_id text,
+  UNIQUE (oauth_provider, oauth_id)
+);
+
+CREATE TABLE subscriptions (
+  subscription_id bigserial PRIMARY KEY,
+  user_id bigint NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  event text NOT NULL,
+  notification_channel text NOT NULL
+    CHECK (notification_channel IN ('sms', 'email')),
+  enabled boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, event, notification_channel)
+);
+
+CREATE INDEX idx_subscriptions_event_channel_enabled
+  ON subscriptions (event, notification_channel, enabled);
 
 CREATE TABLE humid_temp_readings (
   id BIGINT PRIMARY KEY,
-  device_id BIGINT NOT NULL REFERENCES device(id),
+  device_id BIGINT NOT NULL REFERENCES devices(id),
   humidity DOUBLE PRECISION NOT NULL,
   temperature DOUBLE PRECISION,
   received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  linkquality INT NOT NULL
+  linkquality INT NOT NULL,
   comfort_humidity_min DOUBLE PRECISION NOT NULL,
   comfort_temperature_max DOUBLE PRECISION NOT NULL,
   comfort_humidity_max DOUBLE PRECISION NOT NULL,
@@ -17,11 +40,6 @@ CREATE TABLE humid_temp_readings (
   idempotency_key TEXT NOT NULL
 )
 
-CREATE TABLE inbox_messages(
-    id UUID PRIMARY KEY,
-    payload JSONB NOT NULL,
-    received_at TIMESTAMPTZ NOT NULL
-)
 CREATE TABLE devices (
     id BIGINT PRIMARY KEY,
     device_type TEXT NOT NULL, -- ticket name
@@ -60,19 +78,21 @@ CREATE TABLE IF NOT EXISTS inbox_messages(
 CREATE INDEX IF NOT EXISTS idx_inbox_received_at
 ON inbox_messages(received_at DESC);
 
-CREATE TABLE IF NOT EXISTS alert_events(
+CREATE TABLE IF NOT EXISTS outbox_events(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    device_id BIGINT NOT NULL,
-    alert_type TEXT NOT NULL,
-    window_minutes INT NOT NULL,
-    threashold NUMERIC NOT NULL,
-    triggered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    event_type TEXT NOT NULL, -- topic`
+    payload JSONB NOT NULL,
+    attempts INT NOT NULL,
+    processed_at TIMESTAMPTZ,
+    idempotency_key TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    status TEXT NOT NULL DEFAULT 'pending',
+    locked_at TIMESTAMPTZ,
+    last_error TEXT,
+    CONSTRAINT outbox_status_check
+    CHECK (status IN ('pending', 'processing', 'done', 'failed'))
 )
 
 
-SELECT 1
-FROM alert_events
-WHERE device_id = $1
-AND alert_type = 'HUMIDITY_HIGH_SUSTAINED'
-AND triggered_at >= NOW() - INTERVAL '2 hours'
-LIMIT 1
+CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_events(status, created_at);

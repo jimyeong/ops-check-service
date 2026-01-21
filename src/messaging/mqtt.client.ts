@@ -1,6 +1,6 @@
 import mqtt from 'mqtt';
 import type { MqttClient, IClientOptions } from 'mqtt';
-import type { HumidTempReading } from '../core/db/types.ts';
+import type { HumidTempReading, OutboxEvent } from '../core/db/types.ts';
 import { ingestReading } from '../services/ingestSensorReading.ts';
 import { Devices } from '../constants';
 import { insertDeviceIdentifier, getDeviceIdentifier } from '../core/db/repositories/deviceIdentifiersRepo.ts';
@@ -8,6 +8,7 @@ import { getDevice } from '../core/db/repositories/devicesRepo.ts';
 const PREFIX = "zigbee2mqtt/";
 import { saveInboxMessage } from '../core/db/repositories/inboxMessagesRepo.ts';
 import crypto from "crypto";
+import { insertOutboxEvent, OutboxEventInput } from '../core/db/repositories/outboxEventRapo.ts';
 
 
 export type MqttSubscriberOptions = {
@@ -111,7 +112,14 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 temperature_units: payload.temperature_units,
                 update: payload.update,
             }
+            const outboxEvent:OutboxEventInput = {
+                event_type: topic,
+                payload: JSON.parse(msg),
+                idempotency_key: idempotency_key
+            };
+            
             await ingestReading(reading);
+            await insertOutboxEvent(outboxEvent)
             await onMessage({ topic, payload: reading, raw: msg, receivedAt: receivedAt });
             console.log(`[mqtt] received reading: ${JSON.stringify(reading)}`);
 
