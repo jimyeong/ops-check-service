@@ -1,11 +1,11 @@
 import "./bootstrap.ts";
-import { startMqttSubscriber } from './messaging/mqtt.client.ts';
-import type { HumidTempReading } from './core/db/types.ts';
-import { pool } from './core/db/pool.ts';
-import { initApp } from './app/initApp.ts';
-import { Devices } from './constants/index.ts';
-import { ingestReading } from './services/ingestSensorReading.ts';
-import { startOutboxWorker } from "./app/worker.ts";
+import { startMqttSubscriber } from './messaging/mqtt.client';
+import type { HumidTempReading } from './core/db/types';
+import { pool } from './core/db/pool';
+import { initApp } from './app/initApp';
+import { Devices } from './constants/index';
+import { ingestReading } from './services/ingestSensorReading';
+import { startOutboxWorker } from "./app/worker";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const MQTT_URL = process.env.MQTT_URL ?? "mqtt://localhost:1883"

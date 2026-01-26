@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach        } from "vitest";
-import { pool } from "../../../pool.ts";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { pool } from "../../../pool";
 import { insertOutboxEvent } from "../../outboxEventRapo";
-import * as snsClient from "../../../../aws/clients/snsClient.ts";
-import { startOutboxWorker } from "../../../../../app/worker.ts";
+import * as snsClient from "../../../../aws/clients/snsClient";
+import { startOutboxWorker } from "../../../../../app/worker";
 import { PublishCommandOutput } from "@aws-sdk/client-sns";
-import { sleep } from "../../../../../app/worker.ts";
+import { sleep } from "../../../../../app/worker";
 
 
 

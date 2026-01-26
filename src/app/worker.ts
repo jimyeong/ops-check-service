@@ -1,6 +1,7 @@
-import { Pool, PoolClient } from "pg";
-import { OutboxEvent } from "../core/db/types";
-import { JsonValue } from "../types/json";
+import { Pool } from "pg";
+import type { PoolClient } from "pg";
+import type { OutboxEvent } from "../core/db/types";
+import type { JsonValue } from "../types/json";
 import { getErrorMessage } from "../utils/errors";
 import * as snsClient from "../core/aws/clients/snsClient";
 export function startOutboxWorker(pool: Pool) {

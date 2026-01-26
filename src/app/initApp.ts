@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
-import { readingRoutes } from '../routes/readings.routes.ts';
+import { readingRoutes } from '../routes/readings.routes';
 import sensible from '@fastify/sensible';
 
 export type BuildAppOptions = {

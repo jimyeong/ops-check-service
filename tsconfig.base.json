@@ -46,6 +46,7 @@
       // output options
       // "rootDir": "./src",
       //"outDir": "./dist",
+      "forceConsistentCasingInFileNames": true,
     }
   }
   

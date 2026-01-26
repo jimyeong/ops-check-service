@@ -1,8 +1,8 @@
-import { pool } from '../core/db/pool.ts';
-import { ensureDeviceExists } from '../core/db/repositories/devicesRepo.ts';
-import { insertReading } from '../core/db/repositories/sensorReadingRepo.ts';
-import type { HumidTempReading } from '../core/db/types.ts';
-import { Devices } from '../constants/index.ts';
+import { pool } from '../core/db/pool';
+import { ensureDeviceExists } from '../core/db/repositories/devicesRepo';
+import { insertReading } from '../core/db/repositories/sensorReadingRepo';
+import type { HumidTempReading } from '../core/db/types';
+import { Devices } from '../constants/index';
 
 
 const z2mMqttPayload = `

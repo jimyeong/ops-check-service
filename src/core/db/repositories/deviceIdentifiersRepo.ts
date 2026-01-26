@@ -1,6 +1,6 @@
-import { QueryResult } from 'pg';
-import type { DeviceIdentifier } from '../types.ts';
-import { pool } from '../pool.ts';
+
+import type { DeviceIdentifier } from '../types';
+import { pool } from '../pool';
 export const insertDeviceIdentifier = async ( device_id: bigint, id_type: string, id_value: string): Promise<boolean> => { 
     const result = await pool.query(`
         INSERT INTO device_identifiers(

@@ -12,13 +12,17 @@
   "devDependencies": {
     "@types/node": "^25.0.3",
     "@types/pg": "^8.16.0",
+    "tsup": "^8.5.1",
     "vitest": "^4.0.17"
   },
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "NODE_ENV=production tsup src/server.ts --format esm --target node20 --outDir dist --sourcemap false --clean",
     "start": "NODE_ENV=production node dist/server.js",
     "dev": "NODE_ENV=development tsx watch --tsconfig tsconfig.dev.json src/server.ts",
-    "test": "vitest"
+    "test": "vitest",
+    "typecheck": "tsc -p tsconfig.base.json --noEmit",
+    "docker:build": "docker compose up --build",
+    "docker:down": "docker compose down -v "
   }
 }

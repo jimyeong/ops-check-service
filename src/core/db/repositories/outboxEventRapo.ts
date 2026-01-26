@@ -1,6 +1,6 @@
-import { JsonValue } from '../../../types/json.ts';
-import { pool } from '../../db/pool.ts';
-import type { OutboxEvent } from '../types.ts';
+import type { JsonValue } from '../../../types/json';
+import { pool } from '../../db/pool';
+import type { OutboxEvent } from '../types';
 
 export type OutboxEventInput = {
     event_type: string,
