@@ -1,4 +1,4 @@
-import type { HumidTempReading } from '../types.ts';
+import type { HumidTempReading } from '../types';
 import type { PoolClient, QueryResult } from 'pg';
 export async function insertReading(client: PoolClient, reading: HumidTempReading): Promise<HumidTempReading | null> {
     let result: QueryResult<HumidTempReading> | null = null;

@@ -1,5 +1,5 @@
-import type { PoolClient } from 'pg';
-import { pool } from '../pool.ts';
+
+import { pool } from '../pool';
 
 export const saveInboxMessage = async (payload: unknown, message_key: string): Promise<boolean> => {
     const q = `

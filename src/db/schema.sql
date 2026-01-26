@@ -1,29 +1,38 @@
+-- Required for gen_random_uuid()
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-CREATE TABLE users (
-  user_id bigserial PRIMARY KEY,
-  email text UNIQUE,
-  phone_number text UNIQUE NOT NULL,
-  oauth_provider text NOT NULL,
-  oauth_id text,
+CREATE TABLE IF NOT EXISTS users (
+  user_id BIGSERIAL PRIMARY KEY,
+  email TEXT UNIQUE,
+  phone_number TEXT UNIQUE NOT NULL,
+  oauth_provider TEXT NOT NULL,
+  oauth_id TEXT,
   UNIQUE (oauth_provider, oauth_id)
 );
 
-CREATE TABLE subscriptions (
-  subscription_id bigserial PRIMARY KEY,
-  user_id bigint NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-  event text NOT NULL,
-  notification_channel text NOT NULL
+CREATE TABLE IF NOT EXISTS subscriptions (
+  subscription_id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  event TEXT NOT NULL,
+  notification_channel TEXT NOT NULL
     CHECK (notification_channel IN ('sms', 'email')),
-  enabled boolean NOT NULL DEFAULT true,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (user_id, event, notification_channel)
 );
 
-CREATE INDEX idx_subscriptions_event_channel_enabled
+CREATE INDEX IF NOT EXISTS idx_subscriptions_event_channel_enabled
   ON subscriptions (event, notification_channel, enabled);
 
-CREATE TABLE humid_temp_readings (
+CREATE TABLE IF NOT EXISTS devices (
+  id BIGINT PRIMARY KEY,
+  device_type TEXT NOT NULL, -- device type / tag name
+  display_name TEXT NOT NULL,
+  name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS humid_temp_readings (
   id BIGINT PRIMARY KEY,
   device_id BIGINT NOT NULL REFERENCES devices(id),
   humidity DOUBLE PRECISION NOT NULL,
@@ -38,14 +47,11 @@ CREATE TABLE humid_temp_readings (
   temperature_calibration DOUBLE PRECISION NOT NULL,
   temperature_units TEXT NOT NULL,
   idempotency_key TEXT NOT NULL
-)
+);
 
-CREATE TABLE devices (
-    id BIGINT PRIMARY KEY,
-    device_type TEXT NOT NULL, -- ticket name
-    display_name TEXT NOT NULL,
-    name TEXT NOT NULL
-)
+CREATE INDEX IF NOT EXISTS idx_readings_device_time
+  ON humid_temp_readings(device_id, received_at DESC);
+
 CREATE TABLE IF NOT EXISTS device_identifiers (
   id BIGSERIAL PRIMARY KEY,
   device_id BIGINT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
@@ -54,45 +60,45 @@ CREATE TABLE IF NOT EXISTS device_identifiers (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (id_type, id_value)
 );
-CREATE TABLE IF NOT EXISTS alert_events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    device_id BIGINT NOT NULL,
-    alert_type TEXT NOT NULL,
-    window_minutes INT NOT NULL,
-    threashold NUMERIC NOT NULL, 
-    triggered_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-)
 
 CREATE INDEX IF NOT EXISTS idx_device_identifiers_device_id
-ON device_identifiers(device_id);
-CREATE INDEX IF NOT EXISTS idx_readings_device_time
-ON humid_temp_readings(device_id, received_at DESC)
+  ON device_identifiers(device_id);
 
--- just incase you lose your data
-CREATE TABLE IF NOT EXISTS inbox_messages(
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    payload JSONB NOT NULL,
-    received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    message_key TEXT NOT NULL
-)
+CREATE TABLE IF NOT EXISTS alert_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  device_id BIGINT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  alert_type TEXT NOT NULL,
+  window_minutes INT NOT NULL,
+  threshold NUMERIC NOT NULL,
+  triggered_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- just in case you lose your data
+CREATE TABLE IF NOT EXISTS inbox_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  payload JSONB NOT NULL,
+  received_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  message_key TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_inbox_received_at
-ON inbox_messages(received_at DESC);
+  ON inbox_messages(received_at DESC);
 
-CREATE TABLE IF NOT EXISTS outbox_events(
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_type TEXT NOT NULL, -- topic`
-    payload JSONB NOT NULL,
-    attempts INT NOT NULL,
-    processed_at TIMESTAMPTZ,
-    idempotency_key TEXT NOT NULL UNIQUE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    status TEXT NOT NULL DEFAULT 'pending',
-    locked_at TIMESTAMPTZ,
-    last_error TEXT,
-    CONSTRAINT outbox_status_check
+CREATE TABLE IF NOT EXISTS outbox_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type TEXT NOT NULL, -- topic
+  payload JSONB NOT NULL,
+  attempts INT NOT NULL,
+  processed_at TIMESTAMPTZ,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  available_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  status TEXT NOT NULL DEFAULT 'pending',
+  locked_at TIMESTAMPTZ,
+  last_error TEXT,
+  CONSTRAINT outbox_status_check
     CHECK (status IN ('pending', 'processing', 'done', 'failed'))
-)
+);
 
-
-CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_events(status, created_at);
+CREATE INDEX IF NOT EXISTS idx_outbox_pending
+  ON outbox_events(status, created_at);

@@ -1,14 +1,15 @@
 import mqtt from 'mqtt';
 import type { MqttClient, IClientOptions } from 'mqtt';
-import type { HumidTempReading, OutboxEvent } from '../core/db/types.ts';
-import { ingestReading } from '../services/ingestSensorReading.ts';
+import type { HumidTempReading, OutboxEvent } from '../core/db/types';
+import { ingestReading } from '../services/ingestSensorReading';
 import { Devices } from '../constants';
-import { insertDeviceIdentifier, getDeviceIdentifier } from '../core/db/repositories/deviceIdentifiersRepo.ts';
-import { getDevice } from '../core/db/repositories/devicesRepo.ts';
+import { insertDeviceIdentifier, getDeviceIdentifier } from '../core/db/repositories/deviceIdentifiersRepo';
+import { getDevice } from '../core/db/repositories/devicesRepo';
 const PREFIX = "zigbee2mqtt/";
-import { saveInboxMessage } from '../core/db/repositories/inboxMessagesRepo.ts';
+import { saveInboxMessage } from '../core/db/repositories/inboxMessagesRepo';
 import crypto from "crypto";
-import { insertOutboxEvent, OutboxEventInput } from '../core/db/repositories/outboxEventRapo.ts';
+import { insertOutboxEvent } from '../core/db/repositories/outboxEventRapo';
+import type { OutboxEventInput } from '../core/db/repositories/outboxEventRapo';
 
 
 export type MqttSubscriberOptions = {
@@ -115,7 +116,8 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
             const outboxEvent:OutboxEventInput = {
                 event_type: topic,
                 payload: JSON.parse(msg),
-                idempotency_key: idempotency_key
+                idempotency_key: idempotency_key,
+                attempts: 0,
             };
             
             await ingestReading(reading);

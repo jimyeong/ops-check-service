@@ -200,6 +200,37 @@ This stage is intended to verify that the architecture is not only logically cor
 
 ---
 
+## Docker (Mini PC)
+
+### 1) Build and run
+
+```
+docker compose up --build
+```
+
+This brings up:
+- `app` (Fastify + worker)
+- `db` (PostgreSQL, initialized with `src/db/schema.sql`)
+
+### 2) Configure environment
+
+Update the `app` service in `docker-compose.yml` with real values:
+
+- `SNS_TOPIC_ARN`
+- `AWS_REGION`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- `MQTT_URL` (your broker)
+
+### 3) Notes
+
+- The DB schema runs only on the **first** container startup.
+- If you change the schema, remove the volume:  
+  `docker volume rm ops-check-service_db_data`
+
+
+---
+
 ## Philosophy
 
 This project is built around one idea:
@@ -209,3 +240,4 @@ This project is built around one idea:
 
 It started from a mould‑stained, cherished towel —  
 and became a study of reliability, idempotency, and operational truth.
+

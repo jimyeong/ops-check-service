@@ -1,4 +1,4 @@
-import { JsonValue } from "../../types/json"
+import type { JsonValue } from "../../types/json"
 
 export type HumidTempReading = {
     idempotency_key: string,

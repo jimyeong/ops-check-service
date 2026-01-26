@@ -1,5 +1,6 @@
-import { PublishCommand, PublishCommandOutput, SNSClient } from "@aws-sdk/client-sns";
-import { awsConfig } from "../config.ts";
+import { PublishCommand, SNSClient } from "@aws-sdk/client-sns";
+import type { PublishCommandOutput } from "@aws-sdk/client-sns";
+import { awsConfig } from "../config";
 
 const createSNSClient = (): SNSClient => {
     return new SNSClient(awsConfig)

@@ -1,6 +1,6 @@
-import { pool } from "../../pool.ts";
-import { ensureDeviceExists } from "../devicesRepo.ts";
-import { insertReading } from "../sensorReadingRepo.ts";
+import { pool } from "../../pool";
+import { ensureDeviceExists } from "../devicesRepo";
+import { insertReading } from "../sensorReadingRepo";
 import { describe, it, expect } from "vitest";
 
 describe.skip("sensorReadingRepo insertReading (idempotency)", () => {

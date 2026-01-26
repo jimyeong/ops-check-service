@@ -1,3 +1,3 @@
-import { createSNSClient } from "./clients/snsClient.ts";
+import { createSNSClient } from "./clients/snsClient";
 
 export { createSNSClient }
