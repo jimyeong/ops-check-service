@@ -12,36 +12,60 @@ import { OutboxEvent } from "../../../types";
 
 describe("outboxWorker e2e test", () => {
     let worker: ReturnType<typeof startOutboxWorker>
-    beforeEach(() => {
+    beforeEach(async () => {
         vi.clearAllMocks()
+        await pool.query("DELETE FROM outbox_events");
     })
-    afterEach(() => {
+    afterEach(async () => {
         // clear db of outbox events
-        worker.stop()
+        worker?.stop()
+        await pool.query("DELETE FROM outbox_events");
+
     })
-    afterAll(() => {
-        worker.stop()
+    afterAll(async () => {
+        worker?.stop()
+        await pool.end();
     })
-    it.skip("worker claims an outbox event and publishes it and marks it as done", async () => {
+    it("worker claims an outbox event and publishes it and marks it as done", async () => {
         // mock external dependencies
         const publishMessageSpy = vi.spyOn(snsClient, "publishMessage")
         worker = startOutboxWorker(pool) // worker starts here
-
-        const client = await pool.connect()
-        try {
-            const event = {
-                event_type: "test",
-                payload: { test: "test" },
-                idempotency_key: Math.random().toString(36).substring(2, 15),
-                attempts: 0
-            }
-            await insertOutboxEvent(event)
-            await sleep(3000)
-            await expect.poll(() => publishMessageSpy.mock.calls.length).toBeGreaterThan(0)
-        } finally {
-            client.release()
-            worker.stop()
+        const idempotencyKey = Math.random().toString(36).substring(2, 15);
+        const event = {
+            event_type: "test",
+            payload: { test: "test" },
+            idempotency_key: idempotencyKey,
+            attempts: 0
         }
+        await insertOutboxEvent(event)
+        await sleep(3000)
+        await expect.poll(() => publishMessageSpy.mock.calls.length).toBeGreaterThan(0)
+        const q = `
+            SELECT status, attempts
+            FROM outbox_events
+            WHERE idempotency_key = $1
+        `
+        // check the status and attempts are correct
+        await expect.poll(async () => {
+            const res = await pool.query(q, [idempotencyKey]);
+            return res.rows[0]
+        }).toMatchObject({
+            status: "done",
+            attempts: 0,
+        })
+
+
+        // check the processed_at field is set
+        await expect.poll(async () => {
+            const q = `
+                SELECT processed_at
+                FROM outbox_events
+                WHERE idempotency_key=$1
+            `
+            const res = await pool.query(q, [idempotencyKey]);
+            return res.rows[0]?.processed_at ?? null;
+        }).not.toBeNull()
+
     })
     it("When publishing fails, the event is retried", async () => {
         // mock external dependencies
@@ -58,10 +82,12 @@ describe("outboxWorker e2e test", () => {
             attempts: 0
         }
         await insertOutboxEvent(event)
+        // check the pulish function is called
         await expect.poll(() => publishMessageSpy.mock.calls.length).toBeGreaterThan(0)
         const q = `
             SELECT attempts FROM outbox_events WHERE idempotency_key = $1
         `
+        // check the attempts are incremented after the publish fails
         await expect.poll(async () => {
             const res = await pool.query(q, [idempotencyKey]);
             return res.rows[0]?.attempts;
