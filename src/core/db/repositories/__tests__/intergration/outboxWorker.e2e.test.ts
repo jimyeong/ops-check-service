@@ -14,7 +14,6 @@ describe("outboxWorker e2e test", () => {
     let worker: ReturnType<typeof startOutboxWorker>
     beforeEach(async () => {
         vi.clearAllMocks()
-        await pool.query("DELETE FROM outbox_events");
     })
     afterEach(async () => {
         // clear db of outbox events
