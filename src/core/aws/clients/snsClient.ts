@@ -6,7 +6,7 @@ const createSNSClient = (): SNSClient => {
     return new SNSClient(awsConfig)
 }
 
-const publishMessage = async (client: SNSClient, message: string): Promise<PublishCommandOutput> => {
+const publishMessage = async (client: SNSClient, message: string, eventType: string): Promise<PublishCommandOutput> => {
     if (!process.env.SNS_TOPIC_ARN) {
         throw new Error("SNS_TOPIC_ARN is not set")
     }
@@ -14,7 +14,13 @@ const publishMessage = async (client: SNSClient, message: string): Promise<Publi
     const command = new PublishCommand({
         TopicArn: process.env.SNS_TOPIC_ARN,
         Message: message,
-        Subject: "Notification"
+        Subject: "Notification",
+        MessageAttributes: {
+            "event_type": {
+                DataType: "String",
+                StringValue: eventType
+            }
+        }
     })
     return client.send(command)
 }
