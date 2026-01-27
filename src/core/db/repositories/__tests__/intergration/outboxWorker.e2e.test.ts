@@ -31,6 +31,7 @@ describe.skip("outboxWorker e2e test", () => {
             }
             await insertOutboxEvent(event)
             await sleep(3000) // give the worker some time to process the event
+
             expect(publishMessageSpy).toHaveBeenCalled()
             
         } finally {
