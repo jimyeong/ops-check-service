@@ -4,25 +4,30 @@ import type { OutboxEvent } from "../core/db/types";
 import type { JsonValue } from "../types/json";
 import { getErrorMessage } from "../utils/errors";
 import * as snsClient from "../core/aws/clients/snsClient";
-export function startOutboxWorker(pool: Pool) {
+import { SNSClient } from "@aws-sdk/client-sns";
+
+export type Worker = {
+    stop: () => void
+}
+
+export function startOutboxWorker(pool: Pool): Worker {
     const BATCH_SIZE = 50;
     const SLEEP_MS = 500;
+    let running = true;
+    let client: PoolClient | null = null;
+    let clientSNS = snsClient.createSNSClient();
     const loop = async () => {
-        while (true) {
-            const client = await pool.connect();
+        while (running) {
+            client = client ?? await pool.connect();
             try {
                 const events = await claimBatch(client, BATCH_SIZE);
                 if (events.length === 0) {
                     await sleep(SLEEP_MS)
                     continue;
                 }
-
                 for (const event of events) {
                     try {
-
-                        console.log("PUBLISHING MESSAGE", event)
-                        await publish(event.event_type, event.payload as JsonValue)
-                        console.log("PUBLISHING MESSAGE", event)
+                        await publish(clientSNS, event.event_type, event.payload as JsonValue)
                         await markDone(client, event.id);
                     } catch (e) {
                         const msg = getErrorMessage(e)
@@ -30,20 +35,24 @@ export function startOutboxWorker(pool: Pool) {
                     }
                 }
             } catch (e) {
-                console.log("4@@@", e)
                 const msg = getErrorMessage(e)
                 console.log(msg)
             } finally {
-                client.release()
+                client?.release()
+                client = null;
             }
         }
     }
+    const stop = () => {
+        running = false;
+        client?.release()
+        client = null;
+    }
     loop().catch(e => {
-        console.error("Outbox worker crashhed", e);
+        console.error("Outbox worker crashed", e);
         process.exit(1);
     })
-
-
+    return { stop }
 }
 
 async function claimBatch(client: PoolClient, limit: number): Promise<OutboxEvent[]> {
@@ -75,18 +84,26 @@ async function markDone(client: PoolClient, id: string) {
     const q = `
         UPDATE outbox_events
         SET status = 'done', processed_at = now()
+
         WHERE id = $1
     `
-    client.query(q, [id])
+    try {
+        await client.query(q, [id])
+    } catch (e) {
+        console.log("error marking done", e)
+        throw e
+    }
 }
 
 async function markRetry(client: PoolClient, id: string, attempts: number, lastError: string) {
+    console.log("marking retry", id, attempts, lastError)
     const q = `
         UPDATE outbox_events
-        SET status = 'pending'
+        SET status = 'pending',
             attempts = $2,
             available_at = now() + ($3 || ' second')::interval,
-            last_error = $4
+            last_error = $4,
+            locked_at = null
         WHERE id = $1
     `
     const nextAttempts = attempts + 1
@@ -98,12 +115,10 @@ async function markRetry(client: PoolClient, id: string, attempts: number, lastE
         throw e
     }
 }
-
-async function publish(topic: string, payload: JsonValue) {
-    const client = snsClient.createSNSClient()
+async function publish(clientSNS: SNSClient, topic: string, payload: JsonValue) {
     const message = JSON.stringify(payload)
     try {
-        const result = await snsClient.publishMessage(client, message)
+        const result = await snsClient.publishMessage(clientSNS, message, topic)
     } catch (e) {
         console.log("error publishing", e)
         throw e
