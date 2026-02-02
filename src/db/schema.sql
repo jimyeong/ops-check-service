@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS device_identifiers (
 );
 
 CREATE INDEX IF NOT EXISTS idx_device_identifiers_device_id
-  ON device_identifiers(device_id);
+  ON device_identifiers(device_id, id_value);
 
 CREATE TABLE IF NOT EXISTS alert_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

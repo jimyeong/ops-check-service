@@ -39,7 +39,6 @@ async function main() {
         console.log(`[mqtt] raw: ${raw}`);
         console.log(`[mqtt] receivedAt: ${receivedAt}`);
         const reading = payload as unknown as HumidTempReading;
-
         try{
             // await ingestReading(reading);
         }catch(e){

@@ -76,6 +76,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
     client.on("message", async (topic, message) => {
         console.log(`[mqtt] message: ${message.toString()}`);
         const msg = message.toString("utf-8");
+        // normalise the topic and msg to lowercase
         const idempotency_key = crypto.createHash('sha256').update(topic + ":" + msg).digest('hex');
         try {
             // filterings
@@ -123,7 +124,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
             await ingestReading(reading);
             await insertOutboxEvent(outboxEvent)
             await onMessage({ topic, payload: reading, raw: msg, receivedAt: receivedAt });
-            console.log(`[mqtt] received reading: ${JSON.stringify(reading)}`);
+            // console.log(`[mqtt] received reading: ${JSON.stringify(reading)}`);
 
         } catch (e) {
             // QoS 1 + persistent session + stable clientId

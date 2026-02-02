@@ -8,8 +8,7 @@ export const insertDeviceIdentifier = async ( device_id: bigint, id_type: string
             id_type,
             id_value
         )VALUES($1, $2, $3)
-        ON CONFLICT(id_type, id_value) DO NOTHING
-        UNIQUE(id_type, id_value)   
+        ON CONFLICT(id_type, id_value) DO NOTHING   
     `, [device_id, id_type, id_value]);
     const isDuplicated = result.rowCount===0;
     return isDuplicated; // true if duplicated
