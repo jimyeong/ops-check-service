@@ -138,4 +138,13 @@ describe.skip("sensorReadingRepo insertReading (idempotency)", () => {
       client.release();
     }
   });
+
+  it("isHumiditySustainedHigh should return true if the 90% of the recent readings are above the threshold", async () => {
+    const client = await pool.connect();
+
+
+
+  })
+
+
 });

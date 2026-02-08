@@ -10,7 +10,9 @@ import { saveInboxMessage } from '../core/db/repositories/inboxMessagesRepo';
 import crypto from "crypto";
 import { insertOutboxEvent } from '../core/db/repositories/outboxEventRapo';
 import type { OutboxEventInput } from '../core/db/repositories/outboxEventRapo';
-
+import { transitionAlertStateAndEnqueue } from '../services/alertTransitionService';
+import { isHumiditySustainedHigh } from '../core/db/repositories/sensorReadingRepo';
+import { handleReading } from '../services/readingServices';
 
 export type MqttSubscriberOptions = {
     url: string;
@@ -106,15 +108,19 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 temperature_units: payload.temperature_units,
                 update: payload.update,
             }
-            const outboxEvent:OutboxEventInput = {
+            const outboxEvent: OutboxEventInput = {
                 event_type: topic,
                 payload: JSON.parse(msg),
                 idempotency_key: idempotency_key,
                 attempts: 0,
             };
-            
-            await ingestReading(reading);
-            await insertOutboxEvent(outboxEvent)
+
+            // ingest the reading, transition the alert state
+            await handleReading(reading, device_id, idempotency_key, {
+                isHumiditySustainedHigh,
+                ingestReading,
+                transitionAlertStateAndEnqueue,
+            })
             // TODO save the message in the inbox table
             await onMessage({ topic, payload: reading, raw: msg, receivedAt: receivedAt });
             // console.log(`[mqtt] received reading: ${JSON.stringify(reading)}`);

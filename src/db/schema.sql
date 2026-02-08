@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS devices (
   name TEXT NOT NULL
 );
 
+
 CREATE TABLE IF NOT EXISTS humid_temp_readings (
   id BIGINT PRIMARY KEY,
   device_id BIGINT NOT NULL REFERENCES devices(id),
@@ -102,3 +103,15 @@ CREATE TABLE IF NOT EXISTS outbox_events (
 
 CREATE INDEX IF NOT EXISTS idx_outbox_pending
   ON outbox_events(status, created_at);
+
+
+
+
+-- for alerting, 6th of Feb ADDED
+CREATE TABLE IF NOT EXISTS device_alert_states{
+  device_alert_state_id BIGSERIAL PRIMARY KEY,
+  device_id BIGINT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  alert_state BOOLEAN NOT NULL DEFAULT FALSE,
+  alert_type TEXT NOT NULL,
+  last_triggered_at TIMESTAMPTZ DEFAULT NOW(),
+}

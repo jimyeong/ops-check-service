@@ -47,3 +47,11 @@ export type OutboxEvent = {
     locked_at: Date,
     last_error: string,
 }
+
+export type DeviceAlertState = {
+    device_alert_state_id: bigint,
+    device_id: bigint,
+    alert_state: boolean,
+    alert_type: "humidity_sensor"
+    last_triggered_at: Date,
+}
