@@ -13,7 +13,7 @@ import type { OutboxEventInput } from '../core/db/repositories/outboxEventRepo';
 import { transitionAlertStateAndEnqueue } from '../services/alertTransitionService';
 import { isHumiditySustainedHigh } from '../core/db/repositories/sensorReadingRepo';
 import { handleReading } from '../services/readingServices';
-
+import { getDeviceAlertState } from '../core/db/repositories/deviceAlertStateRepo';
 export type MqttSubscriberOptions = {
     url: string;
     topics: string[]
