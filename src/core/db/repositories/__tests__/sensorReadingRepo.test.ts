@@ -1,10 +1,21 @@
+import type { PoolClient } from "pg";
 import { pool } from "../../pool";
 import { ensureDeviceExists } from "../devicesRepo";
-import { insertReading } from "../sensorReadingRepo";
-import { describe, it, expect } from "vitest";
+import { insertReading, isHumiditySustainedHigh } from "../sensorReadingRepo";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
-describe.skip("sensorReadingRepo insertReading (idempotency)", () => {
-  it("should insert once and ignore duplicates for same (device_id, idempotency_key)", async () => {
+
+describe("sensorReadingRepo insertReading (idempotency)", () => {
+  let client: PoolClient;
+  beforeEach(async () => {
+    client = await pool.connect();
+    await client.query("BEGIN");
+  })
+  afterEach(async () => {
+    await client.query("ROLLBACK");
+    client.release();
+  })
+  it.skip("should insert once and ignore duplicates for same (device_id, idempotency_key)", async () => {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -61,7 +72,7 @@ describe.skip("sensorReadingRepo insertReading (idempotency)", () => {
     }
   });
 
-  it("should insert twice if idempotency_key differs", async () => {
+  it.skip("should insert twice if idempotency_key differs", async () => {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -110,7 +121,7 @@ describe.skip("sensorReadingRepo insertReading (idempotency)", () => {
     }
   });
 
-  it("should throw if idempotency_key is missing", async () => {
+  it.skip("should throw if idempotency_key is missing", async () => {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -139,12 +150,48 @@ describe.skip("sensorReadingRepo insertReading (idempotency)", () => {
     }
   });
 
-  it("isHumiditySustainedHigh should return true if the 90% of the recent readings are above the threshold", async () => {
+  it.skip("isHumiditySustainedHigh should return true if the 90% of the recent readings are above the threshold", async () => {
     const client = await pool.connect();
+    // delete the readings
+    const clearDB = async () => {
+      const q = `
+      DELETE FROM humid_temp_readings WHERE device_id = $1
+    `
+      await client.query(q, [BigInt(1)]);
+    }
 
-
+    const mockData = {
+      device_id: BigInt(1),
+      humidity: 0,
+      receivedAt: new Date(),
+      idempotency_key: "test",
+      temperature: 20,
+      battery: 100,
+      linkquality: "100",
+      comfort_humidity_min: 40,
+      comfort_temperature_max: 27,
+      comfort_humidity_max: 60,
+      comfort_temperature_min: 19,
+      humidity_calibration: 0,
+      temperature_calibration: 0,
+      temperature_units: "celsius",
+    }
+    const runCase = async (cases: number[], expected: boolean) => {
+      await clearDB();
+      for (const h of cases) {
+        await insertReading(client, {
+          ...mockData,
+          humidity: h,
+          idempotency_key: Math.random().toString(36).substring(2, 15),
+        } as any)
+      }
+      const result = await isHumiditySustainedHigh(BigInt(1));
+      expect(result).toBe(expected);
+      await clearDB();
+    }
+    await runCase([60, 60, 60, 60, 60, 60, 60, 60, 60, 60], true);
+    await runCase([60, 60, 60, 60, 60, 60, 60, 60, 60, 59], true);
+    await runCase([60, 60, 60, 60, 60, 60, 60, 60, 58, 59], false);
 
   })
-
-
 });

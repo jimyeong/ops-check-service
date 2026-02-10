@@ -1,6 +1,5 @@
 import { getDeviceAlertState, updateDeviceAlertState } from "../core/db/repositories/deviceAlertStateRepo";
-import { insertOutboxEvent } from "../core/db/repositories/outboxEventRapo";
-import type { PoolClient } from 'pg';
+import { insertOutboxEvent } from "../core/db/repositories/outboxEventRepo";
 import type { JsonObject } from "../types/json";
 import { pool } from "../core/db/pool";
 
