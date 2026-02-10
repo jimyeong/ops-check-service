@@ -8,10 +8,12 @@ import { getDevice } from '../core/db/repositories/devicesRepo';
 const PREFIX = "zigbee2mqtt/";
 import { saveInboxMessage } from '../core/db/repositories/inboxMessagesRepo';
 import crypto from "crypto";
-import { insertOutboxEvent } from '../core/db/repositories/outboxEventRapo';
-import type { OutboxEventInput } from '../core/db/repositories/outboxEventRapo';
-
-
+import { insertOutboxEvent } from '../core/db/repositories/outboxEventRepo';
+import type { OutboxEventInput } from '../core/db/repositories/outboxEventRepo';
+import { transitionAlertStateAndEnqueue } from '../services/alertTransitionService';
+import { isHumiditySustainedHigh } from '../core/db/repositories/sensorReadingRepo';
+import { handleReading } from '../services/readingServices';
+import { getDeviceAlertState } from '../core/db/repositories/deviceAlertStateRepo';
 export type MqttSubscriberOptions = {
     url: string;
     topics: string[]
@@ -36,7 +38,6 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         clean: false,
     } as IClientOptions);
     client.on('connect', async () => {
-        // 
         const topicsToSubscribe = (options.topics?.length ? options.topics : [PREFIX + Devices.TOILET_HUMID_TEMP_SENSOR]);
         client.subscribe(topicsToSubscribe, { qos: 1 }, async (err, granted) => {
             if (err) {
@@ -44,17 +45,16 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 client.emit("error", err);
                 return;
             }
-
-            console.log("subscribed", granted);
-
             try {
+                console.log("subscribed", granted);
                 // Ensure the device identifier exists (id_type='topic_name', id_value='<device name>').
                 const deviceRow = await getDevice(Devices.TOILET_HUMID_TEMP_SENSOR);
                 if (deviceRow === null) {
                     console.error(`Device not found`);
-                    return;
+                    throw new Error(`Device not found`);
                 }
 
+                // mapping the topic name to the device id in the mapper table
                 const alreadyExists = await insertDeviceIdentifier(
                     deviceRow.id,
                     "topic_name",
@@ -66,12 +66,6 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 console.error(`Failed to insert device identifier: ${e}`);
             }
         });
-        client.publish(
-            "ops/alert",
-            JSON.stringify({ device_id: 42, type: "HUMIDITY_HIGH" }),
-            { qos: 1, retain: false }, (err) => {
-                if (err) console.error(`publish err`, err);
-            })
     })
     client.on("message", async (topic, message) => {
         console.log(`[mqtt] message: ${message.toString()}`);
@@ -114,15 +108,20 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 temperature_units: payload.temperature_units,
                 update: payload.update,
             }
-            const outboxEvent:OutboxEventInput = {
+            const outboxEvent: OutboxEventInput = {
                 event_type: topic,
                 payload: JSON.parse(msg),
                 idempotency_key: idempotency_key,
                 attempts: 0,
             };
-            
-            await ingestReading(reading);
-            await insertOutboxEvent(outboxEvent)
+
+            // ingest the reading, transition the alert state
+            await handleReading(reading, device_id, idempotency_key, {
+                isHumiditySustainedHigh,
+                ingestReading,
+                transitionAlertStateAndEnqueue,
+            })
+            // TODO save the message in the inbox table
             await onMessage({ topic, payload: reading, raw: msg, receivedAt: receivedAt });
             // console.log(`[mqtt] received reading: ${JSON.stringify(reading)}`);
 

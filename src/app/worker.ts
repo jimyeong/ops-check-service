@@ -77,16 +77,16 @@ async function claimBatch(client: PoolClient, limit: number): Promise<OutboxEven
 }
 
 async function markDone(client: PoolClient, id: string) {
-    // const q = `
-    //     DELETE FROM outbox_events
-    //     WHERE id=$1
-    // `
     const q = `
-        UPDATE outbox_events
-        SET status = 'done', processed_at = now()
-
-        WHERE id = $1
+        DELETE FROM outbox_events
+        WHERE id=$1
     `
+    // const q = `
+    //     UPDATE outbox_events
+    //     SET status = 'done', processed_at = now()
+
+    //     WHERE id = $1
+    // `
     try {
         await client.query(q, [id])
     } catch (e) {
