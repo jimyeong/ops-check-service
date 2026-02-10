@@ -1,5 +1,4 @@
 import type { JsonValue } from '../../../types/json';
-import { pool } from '../../db/pool';
 import type { OutboxEvent } from '../types';
 import type { PoolClient } from 'pg';
 
@@ -12,6 +11,9 @@ export type OutboxEventInput = {
 
 export const insertOutboxEvent = async (client: PoolClient, event: OutboxEventInput): Promise<OutboxEvent | null> => {
     try {
+        if (!event.idempotency_key) {
+            throw new Error("idempotency_key is required");
+        }
         const q = `
         INSERT INTO outbox_events (event_type, payload, idempotency_key, attempts)
         VALUES ($1, $2, $3, $4)

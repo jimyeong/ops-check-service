@@ -2,29 +2,32 @@ import { DeviceAlertState } from "../types";
 import { pool } from "../pool";
 import type { PoolClient } from 'pg';
 
-export async function getDeviceAlertState(device_id: bigint): Promise<DeviceAlertState | null> {
+export async function getDeviceAlertState(device_id: bigint, alert_type: string): Promise<DeviceAlertState | null> {
     const q = `
     SELECT device_alert_state_id, device_id, alert_state, alert_type, last_triggered_at
     FROM device_alert_states
     WHERE device_id = $1
+    AND alert_type = $2
     LIMIT 1
     `
     try {
-        const result = await pool.query<DeviceAlertState>(q, [device_id]);
+        const result = await pool.query<DeviceAlertState>(q, [device_id, alert_type]);
         return result.rows[0] ?? null;
     } catch (e) {
         throw e;
     }
 };
-export async function updateDeviceAlertState(client: PoolClient,device_id: bigint, alert_state: boolean): Promise<DeviceAlertState | null> {
+export async function updateDeviceAlertState(client: PoolClient, device_id: bigint, alert_state: boolean, alert_type: string): Promise<DeviceAlertState | null> {
     const q = `
-        UPDATE device_alert_states 
-        SET alert_state = $1, last_triggered_at = NOW()
-        WHERE device_id = $2
+        INSERT INTO device_alert_states (device_id, alert_state, alert_type, last_triggered_at)
+        VALUES ($1, $2, $3, NOW())
+        ON CONFLICT (device_id, alert_type) DO UPDATE
+        SET alert_state = EXCLUDED.alert_state,
+        last_triggered_at = NOW()
         RETURNING *
     `;
     try {
-        const result = await client.query<DeviceAlertState>(q, [alert_state, device_id]);
+        const result = await client.query<DeviceAlertState>(q, [device_id, alert_state, alert_type]);
         return result.rows[0] ?? null;
     } catch (e) {
         throw e;

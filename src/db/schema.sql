@@ -65,14 +65,7 @@ CREATE TABLE IF NOT EXISTS device_identifiers (
 CREATE INDEX IF NOT EXISTS idx_device_identifiers_device_id
   ON device_identifiers(device_id, id_value);
 
-CREATE TABLE IF NOT EXISTS alert_events (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  device_id BIGINT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
-  alert_type TEXT NOT NULL,
-  window_minutes INT NOT NULL,
-  threshold NUMERIC NOT NULL,
-  triggered_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+
 
 -- just in case you lose your data
 CREATE TABLE IF NOT EXISTS inbox_messages (
@@ -108,10 +101,15 @@ CREATE INDEX IF NOT EXISTS idx_outbox_pending
 
 
 -- for alerting, 6th of Feb ADDED
-CREATE TABLE IF NOT EXISTS device_alert_states{
+CREATE TABLE IF NOT EXISTS device_alert_states(
   device_alert_state_id BIGSERIAL PRIMARY KEY,
   device_id BIGINT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
   alert_state BOOLEAN NOT NULL DEFAULT FALSE,
   alert_type TEXT NOT NULL,
   last_triggered_at TIMESTAMPTZ DEFAULT NOW(),
-}
+  UNIQUE (device_id, alert_type)
+)
+
+
+-- insert a default device alert state for the toilet humid temp sensor
+INSERT INTO device_alert_states (device_id, alert_state, alert_type, last_triggered_at) VALUES (1,  FALSE, 'humidity_sensor', null);

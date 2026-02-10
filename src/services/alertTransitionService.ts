@@ -10,9 +10,10 @@ export async function transitionAlertStateAndEnqueue( device_id: bigint, alert_s
         const payload = {
             device_id: device_id.toString(),
             alert_state: alert_state,
+            alert_type: event_label,
         } as JsonObject;
-        client.query("BEGIN");
-        await updateDeviceAlertState(client, device_id, alert_state);
+        await client.query("BEGIN");
+        await updateDeviceAlertState(client, device_id, alert_state, event_label);
         await insertOutboxEvent(client, {
             event_type: event_label,
             payload: payload,
@@ -21,7 +22,7 @@ export async function transitionAlertStateAndEnqueue( device_id: bigint, alert_s
         });
         await client.query("COMMIT");
     } catch (e) {
-        client.query("ROLLBACK");
+        await client.query("ROLLBACK");
         throw e;
     } finally {
         client.release();

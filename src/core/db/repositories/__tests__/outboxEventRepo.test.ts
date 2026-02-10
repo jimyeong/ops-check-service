@@ -16,7 +16,6 @@ describe("outboxEventRepo", () => {
     })
     it("should insert an outbox event", async () => {
         // when the same idempotency key is used, it should insert once and ignore the others
-        const idempotencyKey = Math.random().toString(36).substring(2, 15);
         const event: OutboxEventInput = {
             event_type: "test",
             payload: { test: "test" },
@@ -24,13 +23,12 @@ describe("outboxEventRepo", () => {
             attempts: 0,
         }
         const runTest = async (event: OutboxEventInput, idempotencyKey: string) => {
-            event.idempotency_key = idempotencyKey;
-            try {
-                const result = await insertOutboxEvent(client, event)
-                return true
-            } catch (e) {
-                return false
-            }
+            const res = await insertOutboxEvent(client, {
+                ...event,
+                idempotency_key: idempotencyKey,
+            })
+            if (!res) return false;
+            return true;
         }
         const result = await runTest(event, "abc123456789");
         expect(result).toBe(true);
