@@ -195,7 +195,7 @@ This validates the system as a **long-running operational service**, not just a 
 ---
 
 ## Project structure
-
+```
 src/  
 ├─ app/  
 │ ├─ initApp.ts # Application bootstrap & lifecycle wiring  
@@ -232,8 +232,8 @@ src/
 │ └─ errors.ts # Error helpers & typed failures  
 │  
 ├─ bootstrap.ts # Application startup wiring  
-└─ server.ts # HTTP server entry point  
-    
+└─ server.ts # HTTP server entry point
+```
 
 
 ---
