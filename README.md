@@ -52,7 +52,7 @@ This repository is the backend foundation for that idea.
 ---
 
 ## Architecture overview
-
+```
 Zigbee Sensor
 ↓
 MQTT (QoS 1, at-least-once)
@@ -68,7 +68,7 @@ Outbox Events
 Polling Worker
 ↓
 Notification Delivery
-
+```
 
 ---
 
