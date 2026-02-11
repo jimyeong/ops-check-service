@@ -198,34 +198,42 @@ This validates the system as a **long-running operational service**, not just a 
 
 src/  
 ├─ app/  
-│ ├─ initApp.ts # App bootstrap  
-│ └─ worker.ts # Polling worker entry  
+│ ├─ initApp.ts # Application bootstrap & lifecycle wiring  
+│ └─ worker.ts # Background polling worker entry point  
+│  
+├─ constants/  
+│ └─ index.ts # Domain constants (device IDs, alert types)  
 │  
 ├─ core/  
-│ ├─ aws/ # SNS integration  
+│ ├─ aws/ # AWS clients (SNS, etc.)  
 │ ├─ db/  
-│ │ ├─ repositories/ # DB access layer  
-│ │ ├─ pool.ts  
-│ │ └─ types.ts  
-│
+│ │ ├─ repositories/ # Persistence layer (SQL hidden behind repos)  
+│ │ ├─ pool.ts # PostgreSQL connection pool  
+│ │ └─ types.ts # Shared DB-level types  
+│  
 ├─ db/  
-│ └─ schema.sql # Database schema  
+│ └─ schema.sql # Database schema & constraints  
 │  
 ├─ messaging/  
-│ └─ mqtt.client.ts # MQTT ingestion  
+│ └─ mqtt.client.ts # MQTT subscription & ingestion logic  
 │  
 ├─ routes/  
-│ └─ readings.routes.ts  
-│
+│ └─ readings.routes.ts # HTTP ingestion endpoints (Fastify)  
+│  
 ├─ services/  
-│ └─ ingestSensorReading.ts  
+│ ├─ ingestSensorReading.ts # Ingestion orchestration  
+│ ├─ alertTransitionService.ts # Alert state transitions + outbox enqueue  
+│ └─ readingsService.ts # Domain-level reading logic  
+│  
+├─ types/  
+│ └─ json.ts # External payload / API types  
 │  
 ├─ utils/  
-│ └─ errors.ts  
+│ └─ errors.ts # Error helpers & typed failures  
 │  
-├─ bootstrap.ts  
-└─ server.ts  
-  
+├─ bootstrap.ts # Application startup wiring  
+└─ server.ts # HTTP server entry point  
+    
 
 
 ---
