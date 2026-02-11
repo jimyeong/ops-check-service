@@ -2,17 +2,17 @@
 
 A reliability-focused backend service for ingesting, storing, and reasoning over environmental signals — designed to run correctly under noisy sensors, unreliable networks, and long-running operational conditions.
 
+> **Status:** In active development. Core ingestion, alerting, and notification pipelines are implemented and tested.
+
 ---
 
-## Why this project exists
+## Origin Story
 
 This project started from a very small but very real problem.
 
-I live in an old flat with poor bathroom ventilation. Moisture accumulates slowly and invisibly, and over time mould began to grow. One day, I found that towels I carefully maintain had been damaged by mould.
+I live in an old flat with poor bathroom ventilation. Moisture accumulated slowly and invisibly, and over time mould began to grow — eventually damaging towels I had carefully maintained.
 
-The loss itself was minor, but the lesson was not:
-
-> Environmental problems are slow, silent, and invisible — by the time damage is obvious, it is already too late.
+The loss itself was minor, but the lesson was not: **environmental problems are slow, silent, and invisible. By the time damage is obvious, it is already too late.**
 
 Instead of treating it as a one-off inconvenience, I chose to approach it as a backend systems problem:
 
@@ -22,270 +22,182 @@ Instead of treating it as a one-off inconvenience, I chose to approach it as a b
 - Trigger notifications only when action is genuinely required
 - Remain correct under duplicate messages, retries, and restarts
 
-This repository is the backend foundation for that idea.
+## What This Project Is (and Is Not)
 
----
+**Not** a hardware project, a UI dashboard, or a demo-only toy.
 
-## What this project is (and is not)
+**It is** a backend system built as a study of idempotency, state transitions, and exactly-once semantics — exercised through a real-world environmental monitoring use case.
 
-**This is not:**
-- A hardware project
-- A UI-heavy dashboard
-- A demo-only toy system
+## Core Design Goals
 
-**This is:**
-- A backend system focused on **reliability, correctness, and operational realism**
-- A study of idempotency, state transitions, and exactly-once behaviour
-- A long-running service designed to tolerate noise, duplication, and failure
+| Goal | Approach |
+|---|---|
+| Survive unreliable delivery | MQTT QoS 1 + deterministic idempotency keys + `ON CONFLICT DO NOTHING` |
+| No duplicate notifications | Explicit alert state machine with transition-only triggers |
+| Safe concurrency | Atomic claim model with SQL-level locking |
+| Debuggable months later | All state persisted and queryable — no in-memory assumptions |
 
----
+## Architecture
 
-## Core design goals
-
-- Survive unreliable networks (MQTT QoS1, duplicate delivery)
-- Prevent duplicate writes and duplicate notifications
-- Make alerting state explicit and queryable
-- Avoid race conditions under concurrent workers
-- Ensure end-to-end consistency from ingestion → persistence → notification
-- Remain debuggable months later using stored state, not memory
-
----
-
-## Architecture overview
 ```
 Zigbee Sensor
-↓
-MQTT (QoS 1, at-least-once)
-↓
-MQTT Client / Ingestion Logic
-↓
-PostgreSQL (Idempotent Writes)
-↓
-Alert State Transition (Atomic)
-↓
-Outbox Events
-↓
-Polling Worker
-↓
-Notification Delivery
+     ↓
+MQTT Broker (QoS 1, at-least-once)
+     ↓
+Ingestion Service ── deterministic idempotency_key
+     ↓
+PostgreSQL (unique constraint → exactly-once write)
+     ↓
+Alert State Machine (atomic transition)
+     ↓
+Outbox Table
+     ↓
+Polling Worker (SELECT ... FOR UPDATE)
+     ↓
+AWS SNS Notification
 ```
 
----
+## Key Design Decisions
 
-## Alert logic: sustained conditions & state transitions
+### Sustained Condition Detection
 
-Zigbee sensors emit messages **whenever a value changes**. During unstable conditions, this can result in bursts of events.
+A naive "humidity > 60%" rule would spam notifications under noisy sensor data. This system takes a different approach:
 
-A naive rule like *“humidity > 60%”* would spam notifications.
+1. When a reading arrives at or above threshold, query the last **1 hour** of readings for that device
+2. Calculate the ratio of readings exceeding the threshold
+3. Only trigger if **≥ 90%** of readings are above threshold
 
-This system intentionally avoids that.
+This filters out spikes, short-lived fluctuations, and sensor noise.
 
-### Sustained condition detection
+### State-Based Alerting
 
-When a reading arrives:
+Each device maintains a persisted alert state. Notifications fire **only on state transitions**:
 
-- If `humidity >= 60`, the service queries **the last 1 hour of readings** for that device
-- It calculates the ratio of readings above the threshold
-- Only if **≥ 90%** of those readings exceed 60% is the condition considered *sustained*
+| Previous | Current | Action |
+|---|---|---|
+| `false` | `true` | Sustained risk detected → enqueue notification |
+| `true` | `true` | Risk continues → no action |
+| `true` | `false` | Recovered → re-arm for future incidents |
 
-This filters out noise, spikes, and short-lived fluctuations.
+This guarantees no alert spam and a fully auditable alert history.
 
-### State-based alerting
+### Polling Worker over Event Callbacks
 
-Each device has a persisted alert state in the database.
+The notification worker uses **polling**, not in-process event callbacks. This is deliberate:
 
-- `false → true`  
-  → sustained risk detected  
-  → **enqueue notification**
-- `true → true`  
-  → risk continues  
-  → **no notification**
-- `true → false`  
-  → environment recovered  
-  → alert re-armed for future incidents
-
-Notifications are triggered **only on state transitions**, not on raw sensor events.
-
-This guarantees:
-- No alert spam
-- Deterministic behaviour
-- Fully auditable alert history
-
----
-
-## MQTT ingestion & idempotency
-
-MQTT is configured with **QoS 1 (at-least-once delivery)**.
-
-Duplicate messages are expected and treated as normal.
-
-To guarantee exactly-once persistence at the data layer:
-
-- Each incoming reading is assigned a deterministic `idempotency_key`
-- The database enforces uniqueness with a constraint
-- Inserts use `ON CONFLICT DO NOTHING`
-
-Result:
-- Broker redelivery is harmless
-- Network retries never corrupt history
-- Stored data remains consistent and queryable
-
----
-
-## Notification system
-
-### Polling worker (intentional design)
-
-Notifications are produced by a background **polling worker**, not event callbacks.
-
-This is deliberate.
-
-Polling:
-- Survives restarts
-- Is easy to reason about
+- Survives process restarts without losing pending work
 - Avoids hidden in-memory state
-- Works naturally with SQL locking
-
-### Atomic claiming model
+- Works naturally with SQL-based locking (`SELECT ... FOR UPDATE`)
 
 Each notification follows a strict lifecycle:
 
+```
 PENDING → CLAIMED → SENT / FAILED
+```
 
+Claiming is transactional — only the worker that successfully updates the row owns it. This makes parallel workers safe by default.
 
-Claiming happens inside a single transaction:
+### Idempotent Ingestion
 
-- Select eligible `PENDING` rows
-- Transition them to `CLAIMED`
-- Only the worker that successfully updates the row owns it
+MQTT QoS 1 guarantees at-least-once delivery, meaning **duplicates are expected**. The system handles this at the data layer:
 
-This guarantees:
-- Exactly-once delivery at the business level
-- Safe parallel workers
-- No duplicate notifications
-- No lost tasks on crashes or restarts
+- Each reading gets a deterministic `idempotency_key`
+- PostgreSQL enforces uniqueness via constraint
+- Inserts use `ON CONFLICT DO NOTHING`
 
----
+Broker redelivery and network retries are harmless by design.
 
-## End-to-end testing philosophy
+## Testing Approach
 
-Tests are written with **Vitest**, but they are **flow-based**, not isolated unit tests.
+Tests are **flow-based**, not isolated unit tests. Each test exercises the full operational path:
 
-Each test exercises the full operational path:
+```
+Sensor Payload → Ingestion → DB Persistence → Alert Transition → Outbox Event → Polling Worker → Atomic Claim → Notification Dispatch
+```
 
-
-Sensor Payload
-→ Ingestion
-→ Database Persistence
-→ Alert State Transition
-→ Outbox Event
-→ Polling Worker
-→ Atomic Claim
-→ Notification Dispatch
-
-
-The tests verify:
+Key assertions:
 - Duplicate MQTT messages do not create duplicate rows
-- Alert state transitions occur only once
+- Alert state transitions occur exactly once
 - Outbox events are claimed atomically
 - Retries never violate exactly-once semantics
 
-This validates the system as a **long-running operational service**, not just a collection of functions.
+## Tech Stack
 
----
+| Layer | Technology |
+|---|---|
+| Runtime | Node.js + TypeScript |
+| Web Framework | Fastify |
+| Database | PostgreSQL |
+| Messaging | MQTT (QoS 1) |
+| Notifications | AWS SNS |
+| Testing | Vitest |
+| Deployment | Docker Compose |
 
-## Project structure
+## Project Structure
+
 ```
-src/  
-├─ app/  
-│ ├─ initApp.ts # Application bootstrap & lifecycle wiring  
-│ └─ worker.ts # Background polling worker entry point  
-│  
-├─ constants/  
-│ └─ index.ts # Domain constants (device IDs, alert types)  
-│  
-├─ core/  
-│ ├─ aws/ # AWS clients (SNS, etc.)  
-│ ├─ db/  
-│ │ ├─ repositories/ # Persistence layer (SQL hidden behind repos)  
-│ │ ├─ pool.ts # PostgreSQL connection pool  
-│ │ └─ types.ts # Shared DB-level types  
-│  
-├─ db/  
-│ └─ schema.sql # Database schema & constraints  
-│  
-├─ messaging/  
-│ └─ mqtt.client.ts # MQTT subscription & ingestion logic  
-│  
-├─ routes/  
-│ └─ readings.routes.ts # HTTP ingestion endpoints (Fastify)  
-│  
-├─ services/  
-│ ├─ ingestSensorReading.ts # Ingestion orchestration  
-│ ├─ alertTransitionService.ts # Alert state transitions + outbox enqueue  
-│ └─ readingsService.ts # Domain-level reading logic  
-│  
-├─ types/  
-│ └─ json.ts # External payload / API types  
-│  
-├─ utils/  
-│ └─ errors.ts # Error helpers & typed failures  
-│  
-├─ bootstrap.ts # Application startup wiring  
-└─ server.ts # HTTP server entry point
+src/
+├─ app/
+│  ├─ initApp.ts              # Application bootstrap & lifecycle
+│  └─ worker.ts               # Background polling worker
+├─ constants/
+│  └─ index.ts                # Domain constants (device IDs, alert types)
+├─ core/
+│  ├─ aws/                    # AWS clients (SNS)
+│  └─ db/
+│     ├─ repositories/        # Persistence layer (SQL behind repos)
+│     ├─ pool.ts              # PostgreSQL connection pool
+│     └─ types.ts             # DB-level types
+├─ db/
+│  └─ schema.sql              # Database schema & constraints
+├─ messaging/
+│  └─ mqtt.client.ts          # MQTT subscription & ingestion
+├─ routes/
+│  └─ readings.routes.ts      # HTTP ingestion endpoints
+├─ services/
+│  ├─ ingestSensorReading.ts  # Ingestion orchestration
+│  ├─ alertTransitionService.ts # State transitions + outbox
+│  └─ readingsService.ts      # Domain-level reading logic
+├─ types/
+│  └─ json.ts                 # External payload types
+├─ utils/
+│  └─ errors.ts               # Error helpers
+├─ bootstrap.ts               # Startup wiring
+└─ server.ts                  # HTTP server entry point
 ```
 
+## Getting Started
 
----
-
-## Tech stack
-
-- Runtime: Node.js
-- Language: TypeScript
-- Web framework: Fastify
-- Database: PostgreSQL
-- Messaging: MQTT (QoS 1)
-- Notifications: AWS SNS
-- Testing: Vitest (flow-based E2E style)
-- Deployment: Docker + home mini-server
-
----
-
-## Deployment (home lab)
-
-The system is designed to run continuously on a small always-on server.
-
-### Docker
-
+```bash
 docker compose up --build
+```
 
+This brings up Mosquitto (MQTT broker), Zigbee2MQTT, PostgreSQL, and the Ops Check Service (API + worker).
 
-Brings up:
-- Mosquitto (MQTT broker)
-- Zigbee2MQTT
-- PostgreSQL
-- Ops Check Service (API + worker)
+Configure via `.env.production`:
 
-### Environment configuration
+```
+MQTT_URL=
+DB_HOST=
+DB_PORT=
+DB_NAME=
+DB_USER=
+DB_PASSWORD=
+SNS_TOPIC_ARN=
+AWS_REGION=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+```
 
-Set values via `.env.production`:
+## Roadmap
 
-- `MQTT_URL`
-- `DB_*`
-- `SNS_TOPIC_ARN`
-- `AWS_REGION`
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
+- [ ] Historical dashboard — time-series visualization of readings and alert events
+- [ ] Multi-device support — generalize alert rules beyond a single sensor
+- [ ] Configurable thresholds — per-device threshold and window settings via API
+- [ ] Dead sensor detection — alert when a device stops reporting
+- [ ] Grafana integration — export metrics for long-term operational visibility
+- [ ] Load testing — validate behaviour under sustained high-throughput ingestion
 
 ---
 
-## Philosophy
-
-This project is built around a single belief:
-
-> Real systems fail quietly, slowly, and messily.  
-> Good backend design makes those failures observable, contained, and recoverable.
-
-It started with a mould-stained towel —  
-and became a study of idempotency, state, and operational truth.
-
+*This project is built around a single belief: real systems fail quietly, slowly, and messily. Good backend design makes those failures observable, contained, and recoverable.*
