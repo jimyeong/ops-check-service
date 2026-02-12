@@ -24,7 +24,7 @@ export async function updateDeviceAlertState(client: PoolClient, device_id: bigi
         ON CONFLICT (device_id, alert_type) DO UPDATE
         SET alert_state = EXCLUDED.alert_state,
             last_triggered_at = NOW()
-        WHERE alert_state IS DISTINCT FROM EXCLUDED.alert_state
+        WHERE device_alert_states.alert_state IS DISTINCT FROM EXCLUDED.alert_state
         RETURNING *
     `;
     // intially alert_state == null, EXCLUDED.alert_state == true ---> (null != true) becomes NULL(falsy) => NO UPDATE!
