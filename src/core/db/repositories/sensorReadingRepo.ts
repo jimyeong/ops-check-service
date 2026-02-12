@@ -1,10 +1,7 @@
 import type { HumidTempReading } from '../types';
 import type { PoolClient, QueryResult } from 'pg';
 import { pool } from '../pool';
-const HIGH_HUMIDITY_THRESHOLD = 60;
-const MIN_RECENT_READINGS = 5;
-const RECENT_READINGS_INTERVAL = '1 hour';
-const HIGH_RATIO_THRESHOLD = 0.9; // 90% of recent readings are above the threshold
+import { RECENT_READINGS_INTERVAL, MIN_RECENT_READINGS, HIGH_HUMIDITY_THRESHOLD, HIGH_RATIO_THRESHOLD } from '../../../constants/index';
 
 export async function insertReading(client: PoolClient, reading: HumidTempReading): Promise<HumidTempReading | null> {
     let result: QueryResult<HumidTempReading> | null = null;
@@ -72,6 +69,7 @@ export async function isHumiditySustainedHigh(device_id: bigint) {
     `
     try {
         const result = await client.query<{ is_sustained_high: boolean }>(q, [device_id]);
+        console.log("@@2", result.rows[0])
         return result.rows[0].is_sustained_high;
     } catch (e) {
         console.error(`Failed to check if humidity is sustained high: ${e}`);
