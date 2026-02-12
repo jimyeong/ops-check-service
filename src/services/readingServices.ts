@@ -21,11 +21,9 @@ export async function handleReading(
   await ingestReading(reading);
 
   if (reading.humidity == null) return;
-
   if (reading.humidity >= 60) {
     const isSustainedHigh = await isHumiditySustainedHigh(device_id);
     if (!isSustainedHigh) return;
-
     await transitionAlertStateAndEnqueue(
       device_id,
       true,
@@ -34,10 +32,8 @@ export async function handleReading(
     );
     return;
   }
-
   const alertState = await getDeviceAlertState(device_id, AlertTypes.HUMIDITY_SENSOR_ALERT);
   if (alertState?.alert_state !== true) return;
-
   await transitionAlertStateAndEnqueue(
     device_id,
     false,

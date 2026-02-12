@@ -1,6 +1,7 @@
-import { DeviceAlertState } from "../types";
+
 import { pool } from "../pool";
 import type { PoolClient } from 'pg';
+import type { DeviceAlertState } from "../types";
 
 export async function getDeviceAlertState(device_id: bigint, alert_type: string): Promise<DeviceAlertState | null> {
     const q = `
@@ -10,11 +11,12 @@ export async function getDeviceAlertState(device_id: bigint, alert_type: string)
     AND alert_type = $2
     LIMIT 1
     `
+
     try {
         const result = await pool.query<DeviceAlertState>(q, [device_id, alert_type]);
         return result.rows[0] ?? null;
     } catch (e) {
-        throw e;
+        throw new Error(e.message);
     }
 };
 export async function updateDeviceAlertState(client: PoolClient, device_id: bigint, alert_state: boolean, alert_type: string): Promise<DeviceAlertState | null> {
@@ -24,12 +26,13 @@ export async function updateDeviceAlertState(client: PoolClient, device_id: bigi
         ON CONFLICT (device_id, alert_type) DO UPDATE
         SET alert_state = EXCLUDED.alert_state,
             last_triggered_at = NOW()
-        WHERE alert_state IS DISTINCT FROM EXCLUDED.alert_state
+        WHERE device_alert_states.alert_state IS DISTINCT FROM EXCLUDED.alert_state
         RETURNING *
     `;
     // intially alert_state == null, EXCLUDED.alert_state == true ---> (null != true) becomes NULL(falsy) => NO UPDATE!
     try {
         const result = await client.query<DeviceAlertState>(q, [device_id, alert_state, alert_type]);
+        console.log("@@1", result.rows[0])
         return result.rows[0] ?? null;
     } catch (e) {
         throw e;
