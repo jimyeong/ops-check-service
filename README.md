@@ -166,29 +166,6 @@ src/
 └─ server.ts                  # HTTP server entry point
 ```
 
-## Getting Started
-
-```bash
-docker compose up --build
-```
-
-This brings up Mosquitto (MQTT broker), Zigbee2MQTT, PostgreSQL, and the Ops Check Service (API + worker).
-
-Configure via `.env.production`:
-
-```
-MQTT_URL=
-DB_HOST=
-DB_PORT=
-DB_NAME=
-DB_USER=
-DB_PASSWORD=
-SNS_TOPIC_ARN=
-AWS_REGION=
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-```
-
 ## Roadmap
 
 - [ ] Historical dashboard — time-series visualization of readings and alert events
