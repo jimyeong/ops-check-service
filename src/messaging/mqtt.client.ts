@@ -141,9 +141,12 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 console.error(`[mqtt] failed to parse message: ${e}`);
                 jsonPayload = { raw: msg };
             }
-            const result = await saveInboxMessage(jsonPayload, idempotency_key);
-            if (result) console.log("saved inbox message");
-            else console.log("duplicate inbox message");
+            try {
+                const duplicated = await saveInboxMessage(jsonPayload, idempotency_key);
+                if (duplicated) console.log("duplicated inbox message");
+            } catch (e) {
+                console.error(`[mqtt] failed to save inbox message: ${e}`);
+            }
         }
     });
     client.on("error", (err) => {
