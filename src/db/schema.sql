@@ -113,3 +113,6 @@ CREATE TABLE IF NOT EXISTS device_alert_states(
 
 -- insert a default device alert state for the toilet humid temp sensor
 INSERT INTO device_alert_states (device_id, alert_state, alert_type, last_triggered_at) VALUES (1,  FALSE, 'humidity_sensor', null);
+
+ALTER TABLE inbox_messages
+ADD CONSTRAINT inbox_messages_message_key_unique UNIQUE (message_key);
