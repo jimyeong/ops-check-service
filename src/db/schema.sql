@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS humid_temp_readings (
   humidity_calibration DOUBLE PRECISION NOT NULL,
   temperature_calibration DOUBLE PRECISION NOT NULL,
   temperature_units TEXT NOT NULL,
-  idempotency_key TEXT NOT NULL
+  idempotency_key TEXT NOT NULL UNIQUE
 );
 
 CREATE INDEX IF NOT EXISTS idx_readings_device_time

@@ -107,7 +107,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 temperature: payload.temperature,
                 humidity: payload.humidity,
                 battery: payload.battery,
-                linkquality: payload.linkquality,
+                linkquality: payload.linkquality ?? 0,
                 receivedAt: receivedAt,
                 comfort_humidity_min: payload.comfort_humidity_min,
                 comfort_temperature_max: payload.comfort_temperature_max,
@@ -118,6 +118,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 temperature_units: payload.temperature_units,
                 update: payload.update,
             }
+            console.log("@@payload", payload);
             const outboxEvent: OutboxEventInput = {
                 event_type: topic,
                 payload: JSON.parse(msg),
