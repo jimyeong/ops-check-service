@@ -37,7 +37,10 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         clean: false,
     } as IClientOptions);
     client.on('connect', async () => {
-        const topicsToSubscribe = (options.topics?.length ? options.topics : [`zigbee2mqtt/${Devices.TOILET_HUMID_TEMP_SENSOR}`]);
+        const topicsToSubscribe = (options.topics?.length ? options.topics : [
+            `zigbee2mqtt/${Devices.TOILET_HUMID_TEMP_SENSOR}`,
+            `zigbee2mqtt/${Devices.POWER_SOCKET_AIRFRYER}`
+        ]);
         client.subscribe(topicsToSubscribe, { qos: 1 }, async (err, granted) => {
             if (err) {
                 console.error(`Failed to subscribe to topics ${topicsToSubscribe.join(", ")}: ${err}`);
@@ -46,31 +49,39 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
             }
             try {
                 console.log("subscribed", granted);
-                // Ensure the device identifier exists (id_type='topic_name', id_value='<device name>').
+                // Ensure a device identifier exists for each concrete zigbee device topic.
                 // NOTE: `connect` can fire on every reconnect, so avoid noisy logs on normal operation.
-                // TODO add device process later
-                const deviceRow = await getDevice(Devices.TOILET_HUMID_TEMP_SENSOR);
-                if (deviceRow === null) {
-                    console.error(`Device not found`);
-                    throw new Error(`Device not found`);
-                }
+                const devicesToEnsure = [...new Set(
+                    topicsToSubscribe
+                        .filter((topic) => topic.startsWith('zigbee2mqtt/'))
+                        .map((topic) => topic.substring('zigbee2mqtt/'.length).trim())
+                        .filter((device) =>
+                            device.length > 0 &&
+                            !device.includes('#') &&
+                            !device.includes('+') &&
+                            !device.startsWith('bridge/')
+                        )
+                )];
 
-                const existingIdentifier = await getDeviceIdentifier(
-                    "topic_name",
-                    Devices.TOILET_HUMID_TEMP_SENSOR,
-                );
+                for (const deviceName of devicesToEnsure) {
+                    const deviceRow = await getDevice(deviceName);
+                    if (deviceRow === null) {
+                        console.error(`Device not found: ${deviceName}`);
+                        continue;
+                    }
 
-                if (existingIdentifier === null) {
-                    const didInsert = await insertDeviceIdentifier(
+                    const existingIdentifier = await getDeviceIdentifier("topic_name", deviceName);
+                    if (existingIdentifier !== null) continue;
+
+                    const isDuplicated = await insertDeviceIdentifier(
                         deviceRow.id,
                         "topic_name",
-                        Devices.TOILET_HUMID_TEMP_SENSOR,
+                        deviceName,
                     );
 
-                    if (didInsert) {
-                        console.log("inserted device identifier");
+                    if (!isDuplicated) {
+                        console.log(`inserted device identifier: ${deviceName}`);
                     }
-                    // If `didInsert` is false, another instance likely inserted it concurrently.
                 }
             } catch (e) {
                 console.error(`Failed to insert device identifier: ${e}`);
@@ -78,13 +89,16 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         });
     })
     client.on("message", async (topic, message) => {
+
+        console.log("[RAW] got message on topic:", topic);
+        console.log("[RAW] payload:", message.toString());   
         // filterings
         if (!topic.startsWith('zigbee2mqtt/')) return;
         if (topic.endsWith('/bridge/state')) return;
         if (topic.endsWith('/bridge/info')) return;
         if (topic.endsWith('/bridge/devices')) return;
         const device = topic.substring('zigbee2mqtt/'.length).trim();
-        if (device !== Devices.TOILET_HUMID_TEMP_SENSOR) return;
+        if (device !== Devices.TOILET_HUMID_TEMP_SENSOR && device !== Devices.POWER_SOCKET_AIRFRYER) return;
         console.log(`[mqtt] message: ${message.toString()}`);
         // build idempotency key
         const msg = message.toString("utf-8");
@@ -118,7 +132,6 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 temperature_units: payload.temperature_units,
                 update: payload.update,
             }
-            console.log("@@payload", payload);
             const outboxEvent: OutboxEventInput = {
                 event_type: topic,
                 payload: JSON.parse(msg),
