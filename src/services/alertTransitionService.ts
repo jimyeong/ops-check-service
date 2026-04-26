@@ -2,7 +2,9 @@ import { updateDeviceAlertState } from "../core/db/repositories/deviceAlertState
 import { insertOutboxEvent } from "../core/db/repositories/outboxEventRepo";
 import type { JsonObject } from "../types/json";
 import { pool } from "../core/db/pool";
+import { AlertTypes } from "../constants";
 
+type EventLabelType = typeof AlertTypes[keyof typeof AlertTypes];
 
 export async function transitionAlertStateAndEnqueue(
     device_id: bigint,

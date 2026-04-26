@@ -69,7 +69,6 @@ export async function isHumiditySustainedHigh(device_id: bigint) {
     `
     try {
         const result = await client.query<{ is_sustained_high: boolean }>(q, [device_id]);
-        console.log("@@2", result.rows[0])
         return result.rows[0].is_sustained_high;
     } catch (e) {
         console.error(`Failed to check if humidity is sustained high: ${e}`);

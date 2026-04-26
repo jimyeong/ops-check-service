@@ -17,8 +17,19 @@ Please consider ventilating the area or turning on a dehumidifier.
 
 export const enum Devices {
     TOILET_HUMID_TEMP_SENSOR = `0x8c73dafffec86b53`,
+    POWER_SOCKET_AIRFRYER = `0xa4c138096415ffff`,
+
 
 }
 export const enum AlertTypes {
     HUMIDITY_SENSOR_ALERT = `humidity_sensor_alert`,
+    POWER_SOCKET_AIRFRYER_ALERT = `power_socket_airfryer_alert`,
+}
+export const enum RabbitMQTopic {
+    TOILET_SENSOR_TOPIC = 'lidless.ravens.bathroom'
+}
+
+export const enum OutboxEventTypes {
+    AMQP_PUBLISH = `amqp_publish`,
+    SNS_PUBLISH = `sns_publish`,
 }
