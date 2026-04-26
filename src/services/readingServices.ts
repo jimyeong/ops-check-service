@@ -16,11 +16,11 @@ type ReadingServicesDeps = {
 };
 export async function handleReading(
   reading: HumidTempReading,
-  device_id: bigint,
-  idempotency_key: string,
   deps: ReadingServicesDeps
 ) {
   const { isHumiditySustainedHigh, ingestReading, enqueueOutboxService, transitionAlertStateAndEnqueue } = deps;
+  const device_id = reading.device_id;
+  const idempotency_key = reading.idempotency_key;
   await ingestReading(reading);
   await enqueueOutboxService({
     event_type: OutboxEventTypes.AMQP_PUBLISH,
@@ -53,7 +53,7 @@ export async function handleReading(
   await transitionAlertStateAndEnqueue(
     device_id,
     false,
-    OutboxEventTypes.SNS_PUBLISH,
+    AlertTypes.HUMIDITY_SENSOR_ALERT,
     idempotency_key
   );
 }

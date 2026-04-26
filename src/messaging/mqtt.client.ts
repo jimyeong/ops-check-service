@@ -131,7 +131,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                     temperature_units: payload.temperature_units,
                     update: payload.update,
                 }
-                await handleReading(reading, device_id, idempotency_key, {
+                await handleReading(reading, {
                     isHumiditySustainedHigh,
                     ingestReading,
                     enqueueOutboxService,
