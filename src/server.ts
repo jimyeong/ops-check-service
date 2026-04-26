@@ -7,6 +7,9 @@ import { Devices } from './constants/index';
 import { ingestReading } from './services/ingestSensorReading';
 import { startOutboxWorker } from "./app/worker";
 
+import { rabbitMQInit } from './core/rabbitMQ/client';
+import type { RabbitMQClientType } from './core/rabbitMQ/client';
+
 const PORT = Number(process.env.PORT ?? 3000);
 const MQTT_URL = process.env.MQTT_URL ?? "mqtt://localhost:1883"
 const MQTT_TOPICS = (process.env.MQTT_TOPICS ?? "zigbee2mqtt/#")
@@ -15,10 +18,10 @@ const MQTT_TOPICS = (process.env.MQTT_TOPICS ?? "zigbee2mqtt/#")
     .filter(Boolean);
 // const MQTT_TOPICS = ["zigbee2mqtt/toilet_humid_temp_sensor"];
 const initDB = async () => {
-    try{
+    try {
         await pool.query("SELECT 1");
         console.log(`[db] connected`);
-    }catch(e){
+    } catch (e) {
         console.error(`[db] error: ${e}`);
         process.exit(1);
     }
@@ -26,10 +29,16 @@ const initDB = async () => {
 
 async function main() {
     const app = initApp(); // app starts here
+    const rabbitMQClient = await rabbitMQInit()
+    app.decorate('amqp', { connection: rabbitMQClient.connection, channel: rabbitMQClient.channel })
     await app.listen({ port: PORT, host: "0.0.0.0" });
     console.log(`[http] listening on port ${PORT}`);
     await initDB() // db connection established here
-    startOutboxWorker(pool); // worker starts here
+
+    startOutboxWorker(pool, rabbitMQClient as unknown as RabbitMQClientType); // worker starts here
+
+    // to use 'fastify.amqp' available in all your routes
+
     const { stop } = startMqttSubscriber({
         url: MQTT_URL,
         topics: MQTT_TOPICS,
@@ -39,9 +48,9 @@ async function main() {
         console.log(`[mqtt] raw: ${raw}`);
         console.log(`[mqtt] receivedAt: ${receivedAt}`);
         const reading = payload as unknown as HumidTempReading;
-        try{
+        try {
             await ingestReading(reading);
-        }catch(e){
+        } catch (e) {
             console.error(`[mqtt] failed to insert reading: ${e}`);
         }
         console.log(`[mqtt] inserted reading: ${JSON.stringify(reading)}`);
@@ -50,6 +59,8 @@ async function main() {
         console.log(`[shutdown] stopping...`);
         await stop();
         await app.close();
+        await rabbitMQClient.connection.close();
+        await rabbitMQClient.channel.close();
         process.exit(0);
     }
     process.on("SIGINT", shutdown);

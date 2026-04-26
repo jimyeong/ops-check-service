@@ -1,9 +1,12 @@
 import type { HumidTempReading } from '../core/db/types';
 import { getDeviceAlertState } from '../core/db/repositories/deviceAlertStateRepo';
-import { AlertTypes } from '../constants';
+import { AlertTypes, OutboxEventTypes } from '../constants';
+import type { OutboxEventInput } from '../core/db/repositories/outboxEventRepo';
+
 type ReadingServicesDeps = {
   isHumiditySustainedHigh: (device_id: bigint) => Promise<boolean>;
   ingestReading: (reading: HumidTempReading) => Promise<void>;
+  enqueueOutboxService: (event: OutboxEventInput) => Promise<void>;
   transitionAlertStateAndEnqueue: (
     device_id: bigint,
     alert_state: boolean,
@@ -17,8 +20,21 @@ export async function handleReading(
   idempotency_key: string,
   deps: ReadingServicesDeps
 ) {
-  const { isHumiditySustainedHigh, ingestReading, transitionAlertStateAndEnqueue } = deps;
+  const { isHumiditySustainedHigh, ingestReading, enqueueOutboxService, transitionAlertStateAndEnqueue } = deps;
   await ingestReading(reading);
+  await enqueueOutboxService({
+    event_type: OutboxEventTypes.AMQP_PUBLISH,
+    payload: {
+      device_id: reading.device_id.toString(),
+      temperature: reading.temperature.toString(),
+      humidity: reading.humidity.toString(),
+      battery: reading.battery.toString(),
+      linkquality: reading.linkquality.toString(),
+      receivedAt: reading.receivedAt.toISOString(),
+    },
+    idempotency_key: idempotency_key,
+    attempts: 0,
+  });
 
   if (reading.humidity == null) return;
   if (reading.humidity >= 60) {
@@ -37,7 +53,7 @@ export async function handleReading(
   await transitionAlertStateAndEnqueue(
     device_id,
     false,
-    AlertTypes.HUMIDITY_SENSOR_ALERT,
+    OutboxEventTypes.SNS_PUBLISH,
     idempotency_key
   );
 }

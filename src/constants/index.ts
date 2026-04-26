@@ -25,3 +25,11 @@ export const enum AlertTypes {
     HUMIDITY_SENSOR_ALERT = `humidity_sensor_alert`,
     POWER_SOCKET_AIRFRYER_ALERT = `power_socket_airfryer_alert`,
 }
+export const enum RabbitMQTopic {
+    TOILET_SENSOR_TOPIC = 'lidless.ravens.bathroom'
+}
+
+export const enum OutboxEventTypes {
+    AMQP_PUBLISH = `amqp_publish`,
+    SNS_PUBLISH = `sns_publish`,
+}

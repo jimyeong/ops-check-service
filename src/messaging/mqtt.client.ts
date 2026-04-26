@@ -14,6 +14,7 @@ import { transitionAlertStateAndEnqueue } from '../services/alertTransitionServi
 import { isHumiditySustainedHigh } from '../core/db/repositories/sensorReadingRepo';
 import { handleReading } from '../services/readingServices';
 import { getDeviceAlertState } from '../core/db/repositories/deviceAlertStateRepo';
+import { enqueueOutboxService } from '../services/enqueueOutboxService';
 export type MqttSubscriberOptions = {
     url: string;
     topics: string[]
@@ -28,6 +29,10 @@ export type MqttMessageHandler = (args: {
     raw: string
     receivedAt: Date;
 }) => Promise<void> | void;
+const sensorsToSubscribe = [
+    Devices.TOILET_HUMID_TEMP_SENSOR,
+    Devices.POWER_SOCKET_AIRFRYER
+]
 export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: MqttMessageHandler): { client: MqttClient; stop: () => Promise<void> } {
     const client = mqtt.connect(options.url, {
         clientId: options.clientId ?? `ops-check-service`,
@@ -37,10 +42,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         clean: false,
     } as IClientOptions);
     client.on('connect', async () => {
-        const topicsToSubscribe = (options.topics?.length ? options.topics : [
-            `zigbee2mqtt/${Devices.TOILET_HUMID_TEMP_SENSOR}`,
-            `zigbee2mqtt/${Devices.POWER_SOCKET_AIRFRYER}`
-        ]);
+        const topicsToSubscribe = (options.topics?.length ? options.topics : sensorsToSubscribe);
         client.subscribe(topicsToSubscribe, { qos: 1 }, async (err, granted) => {
             if (err) {
                 console.error(`Failed to subscribe to topics ${topicsToSubscribe.join(", ")}: ${err}`);
@@ -91,75 +93,64 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
     client.on("message", async (topic, message) => {
 
         console.log("[RAW] got message on topic:", topic);
-        console.log("[RAW] payload:", message.toString());   
+        console.log("[RAW] payload:", message.toString());
         // filterings
         if (!topic.startsWith('zigbee2mqtt/')) return;
         if (topic.endsWith('/bridge/state')) return;
         if (topic.endsWith('/bridge/info')) return;
         if (topic.endsWith('/bridge/devices')) return;
         const device = topic.substring('zigbee2mqtt/'.length).trim();
+        // add devices
         if (device !== Devices.TOILET_HUMID_TEMP_SENSOR && device !== Devices.POWER_SOCKET_AIRFRYER) return;
-        console.log(`[mqtt] message: ${message.toString()}`);
-        // build idempotency key
         const msg = message.toString("utf-8");
-        const idempotency_key = crypto.createHash('sha256').update(topic + ":" + msg).digest('hex');
-        try {
-
-            // Lookup by device name (matches the inserted id_value).
-            const identifier = await getDeviceIdentifier("topic_name", device);
-            if (identifier === null) {
-                console.error(`Device identifier not found, IGNORE the message, topic: ${topic}`);
-                return;
-            }
-            const device_id = identifier.device_id;
-
-            const payload: HumidTempReading = JSON.parse(msg) as HumidTempReading;
-            const receivedAt = new Date();
-            const reading: HumidTempReading = {
-                idempotency_key: idempotency_key,
-                device_id: device_id,
-                temperature: payload.temperature,
-                humidity: payload.humidity,
-                battery: payload.battery,
-                linkquality: payload.linkquality ?? 0,
-                receivedAt: receivedAt,
-                comfort_humidity_min: payload.comfort_humidity_min,
-                comfort_temperature_max: payload.comfort_temperature_max,
-                comfort_humidity_max: payload.comfort_humidity_max,
-                comfort_temperature_min: payload.comfort_temperature_min,
-                humidity_calibration: payload.humidity_calibration,
-                temperature_calibration: payload.temperature_calibration,
-                temperature_units: payload.temperature_units,
-                update: payload.update,
-            }
-            const outboxEvent: OutboxEventInput = {
-                event_type: topic,
-                payload: JSON.parse(msg),
-                idempotency_key: idempotency_key,
-                attempts: 0,
-            };
-
-            // ingest the reading, transition the alert state
-            await handleReading(reading, device_id, idempotency_key, {
-                isHumiditySustainedHigh,
-                ingestReading,
-                transitionAlertStateAndEnqueue,
-            })
-            // TODO save the message in the inbox table
-            await onMessage({ topic, payload: reading, raw: msg, receivedAt: receivedAt });
-            // console.log(`[mqtt] received reading: ${JSON.stringify(reading)}`);
-
-        } catch (e) {
-            let jsonPayload: unknown;
-            try { jsonPayload = JSON.parse(msg); } catch (e) {
-                console.error(`[mqtt] failed to parse message: ${e}`);
-                jsonPayload = { raw: msg };
-            }
+        if (device === Devices.TOILET_HUMID_TEMP_SENSOR) {
+            const idempotency_key = crypto.createHash("sha256").update(topic + ":" + msg).digest('hex');
             try {
-                const duplicated = await saveInboxMessage(jsonPayload, idempotency_key);
-                if (duplicated) console.log("duplicated inbox message");
+                const identifier = await getDeviceIdentifier("topic_name", device);
+                if (identifier === null) {
+                    console.error(`Device identifier not found, IGNORE the message, topci: ${topic}`);
+                    return;
+                }
+                const device_id = identifier.device_id;
+                const payload: HumidTempReading = JSON.parse(msg) as HumidTempReading;
+                const receivedAt = new Date();
+                const reading: HumidTempReading = {
+                    idempotency_key: idempotency_key,
+                    device_id: device_id,
+                    temperature: payload.temperature,
+                    humidity: payload.humidity,
+                    battery: payload.battery,
+                    linkquality: payload.linkquality ?? 0,
+                    receivedAt: receivedAt,
+                    comfort_humidity_min: payload.comfort_humidity_min,
+                    comfort_temperature_max: payload.comfort_temperature_max,
+                    comfort_humidity_max: payload.comfort_humidity_max,
+                    comfort_temperature_min: payload.comfort_temperature_min,
+                    humidity_calibration: payload.humidity_calibration,
+                    temperature_calibration: payload.temperature_calibration,
+                    temperature_units: payload.temperature_units,
+                    update: payload.update,
+                }
+                await handleReading(reading, device_id, idempotency_key, {
+                    isHumiditySustainedHigh,
+                    ingestReading,
+                    enqueueOutboxService,
+                    transitionAlertStateAndEnqueue,
+                })
+                await onMessage({ topic, payload: reading, raw: msg, receivedAt: receivedAt });
             } catch (e) {
-                console.error(`[mqtt] failed to save inbox message: ${e}`);
+
+                let jsonPayload: unknown;
+                try { jsonPayload = JSON.parse(msg); } catch (e) {
+                    console.error(`[mqtt] failed to parse message: ${e}`);
+                    jsonPayload = { raw: msg };
+                }
+                try {
+                    const duplicated = await saveInboxMessage(jsonPayload, idempotency_key);
+                    if (duplicated) console.log("duplicated inbox message");
+                } catch (e) {
+                    console.error(`[mqtt] failed to save inbox message: ${e}`);
+                }
             }
         }
     });

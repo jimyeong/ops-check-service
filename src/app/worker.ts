@@ -5,12 +5,15 @@ import type { JsonValue } from "../types/json";
 import { getErrorMessage } from "../utils/errors";
 import * as snsClient from "../core/aws/clients/snsClient";
 import { SNSClient } from "@aws-sdk/client-sns";
+import { OutboxEventTypes } from "../constants/index";
+import type { RabbitMQClientType } from "../core/rabbitMQ/client";
+import { RabbitMQTopic } from "../constants/index";
 
 export type Worker = {
     stop: () => void
 }
 
-export function startOutboxWorker(pool: Pool): Worker {
+export function startOutboxWorker(pool: Pool, rabbitMQClient: RabbitMQClientType): Worker {
     const BATCH_SIZE = 50;
     const SLEEP_MS = 500;
     let running = true;
@@ -27,7 +30,11 @@ export function startOutboxWorker(pool: Pool): Worker {
                 }
                 for (const event of events) {
                     try {
-                        await publish(clientSNS, event.event_type, event.payload as JsonValue)
+                        if (event.event_type === OutboxEventTypes.SNS_PUBLISH) {
+                            await publishSNS(clientSNS, event.event_type, event.payload as JsonValue)
+                        } else if (event.event_type === OutboxEventTypes.AMQP_PUBLISH) {
+                            await publishCloudAMQP(rabbitMQClient, event.event_type, RabbitMQTopic.TOILET_SENSOR_TOPIC, event.payload as JsonValue)
+                        }
                         await markDone(client, event.id);
                     } catch (e) {
                         const msg = getErrorMessage(e)
@@ -115,7 +122,26 @@ async function markRetry(client: PoolClient, id: string, attempts: number, lastE
         throw e
     }
 }
-async function publish(clientSNS: SNSClient, topic: string, payload: JsonValue) {
+async function publishCloudAMQP(rabbitMQClient: RabbitMQClientType, eventType: string, topic: string, payload: JsonValue) {
+    const message = JSON.stringify(payload)
+
+    try {
+        const result = await rabbitMQClient.channel.sendToQueue(topic, Buffer.from(message), {
+            persistent: true,
+        })
+        if (result) {
+            console.log(`[publishCloudAMQP] message published to topic: ${topic}`)
+        } else {
+            console.error(`[publishCloudAMQP] failed to publish message to topic: ${topic}`)
+            throw new Error(`[publishCloudAMQP] failed to publish message to topic: ${topic}`)
+        }
+    } catch (e) {
+        console.error(`[publishCloudAMQP] failed to publish message: ${e}`)
+        throw e
+    }
+}
+
+async function publishSNS(clientSNS: SNSClient, topic: string, payload: JsonValue) {
     const message = JSON.stringify(payload)
     try {
         const result = await snsClient.publishMessage(clientSNS, message, topic)
