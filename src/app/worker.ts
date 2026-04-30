@@ -32,7 +32,8 @@ export function startOutboxWorker(pool: Pool, rabbitMQClient: RabbitMQClientType
                     try {
                         if (event.event_type === OutboxEventTypes.SNS_PUBLISH) {
                             await publishSNS(clientSNS, event.event_type, event.payload as JsonValue)
-                        } else if (event.event_type === OutboxEventTypes.AMQP_PUBLISH) {
+                        }
+                        if (event.event_type === OutboxEventTypes.AMQP_PUBLISH) {
                             await publishCloudAMQP(rabbitMQClient, event.event_type, RabbitMQTopic.TOILET_SENSOR_TOPIC, event.payload as JsonValue)
                         }
                         await markDone(client, event.id);
