@@ -116,17 +116,17 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 onMessage
             );
         }
-        // if (device === Devices.POWER_SOCKET_FAN) {
-        //     const idempotency_key = crypto.createHash("sha256").update(topic + ":" + payload.last_seen).digest('hex');
-        //     await handleSmartSocketReading(
-        //         idempotency_key,
-        //         topic,
-        //         msg,
-        //         "fan",
-        //         Devices.POWER_SOCKET_FAN,
-        //         onMessage
-        //     );
-        // }
+        if (device === Devices.POWER_SOCKET_FAN) {
+            const idempotency_key = crypto.createHash("sha256").update(topic + ":" + payload.last_seen).digest('hex');
+            await handleSmartSocketReading(
+                idempotency_key,
+                topic,
+                msg,
+                "fan",
+                Devices.POWER_SOCKET_FAN,
+                onMessage
+            );
+        }
     });
     client.on("error", (err) => {
         console.error(`[MQTT] error: `, err);
