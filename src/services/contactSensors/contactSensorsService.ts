@@ -3,7 +3,7 @@ import { insertContactSensorReading } from "../../core/db/repositories/contactSe
 import type { ContactSensorReading } from "../../domain/sensors/contactSensor";
 import crypto from "crypto";
 
-export async function contactSensorsService(idempotency_key: string, device_id: bigint, topic: string, payload: ContactSensorPayload) {
+export async function contactSensorsService(idempotency_key: string, device_id: bigint, topic: string, payload: ContactSensorPayload, label: string) {
     try {
         const reading: ContactSensorReading = {
             idempotency_key: idempotency_key,
@@ -15,7 +15,7 @@ export async function contactSensorsService(idempotency_key: string, device_id: 
             last_seen: payload.last_seen,
             tamper: payload.tamper,
             voltage: payload.voltage,
-            label: payload.label
+            label: label
         };
         await insertContactSensorReading(reading);
         return reading;
