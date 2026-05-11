@@ -125,13 +125,18 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
             );
         } else if (device === Devices.TOILET_WINDOW_SENSOR) {
             const idempotency_key = crypto.createHash("sha256").update(topic + ":" + payload.last_seen).digest('hex');
-            console.log("[msg] idempotency key: ", idempotency_key);
-            console.log("[msg] topic: ", msg);
             if (!idempotency_key) {
-                console.error(`[mqtt] idempotency key not found, IGNORE the message, topci: ${topic}`);
+                console.error(`[mqtt] idempotency key not found, IGNORE the message, topic: ${topic}`);
                 return;
             }
-            await handleContactSensorReadingHandler(idempotency_key, topic, msg, "window sensor", Devices.TOILET_WINDOW_SENSOR, onMessage);
+            await handleContactSensorReadingHandler(
+                idempotency_key,
+                topic,
+                msg,
+                "window sensor",
+                Devices.TOILET_WINDOW_SENSOR,
+                onMessage
+            );
         }
     });
     client.on("error", (err) => {

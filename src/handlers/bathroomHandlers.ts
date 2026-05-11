@@ -16,7 +16,7 @@ export async function handleBathroomHumidiyReading(idempotency_key: string, topi
     try {
         const identifier = await getDeviceIdentifier("topic_name", Devices.TOILET_HUMID_TEMP_SENSOR);
         if (identifier === null) {
-            console.error(`Device identifier not found, IGNORE the message, topci: ${topic}`);
+            console.error(`Device identifier not found, IGNORE the message, topic: ${topic}`);
             return;
         }
         const device_id = identifier.device_id;
