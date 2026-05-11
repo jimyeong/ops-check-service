@@ -93,6 +93,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         if (topic.endsWith('/bridge/info')) return;
         if (topic.endsWith('/bridge/devices')) return;
         const device = topic.substring('zigbee2mqtt/'.length).trim();
+
         // add devices
         if (device !== Devices.TOILET_HUMID_TEMP_SENSOR &&
             device !== Devices.POWER_SOCKET_DEHUMIDIFIER &&
@@ -103,8 +104,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         if (device === Devices.TOILET_HUMID_TEMP_SENSOR) {
             const idempotency_key = crypto.createHash("sha256").update(topic + ":" + msg).digest('hex');
             await handleBathroomHumidiyReading(idempotency_key, topic, msg, onMessage);
-        }
-        if (device === Devices.POWER_SOCKET_DEHUMIDIFIER) {
+        } else if (device === Devices.POWER_SOCKET_DEHUMIDIFIER) {
 
             const idempotency_key = crypto.createHash("sha256").update(topic + ":" + payload.last_seen).digest('hex');
             await handleSmartSocketReading(
@@ -115,8 +115,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 Devices.POWER_SOCKET_DEHUMIDIFIER,
                 onMessage
             );
-        }
-        if (device === Devices.POWER_SOCKET_FAN) {
+        } else if (device === Devices.POWER_SOCKET_FAN) {
             const idempotency_key = crypto.createHash("sha256").update(topic + ":" + payload.last_seen).digest('hex');
             await handleSmartSocketReading(
                 idempotency_key,
