@@ -47,13 +47,6 @@ async function main() {
         console.log(`[mqtt] payload: ${JSON.stringify(payload)}`);
         console.log(`[mqtt] raw: ${raw}`);
         console.log(`[mqtt] receivedAt: ${receivedAt}`);
-        // const reading = payload as unknown as HumidTempReading;
-        try {
-            // await ingestReading(reading);
-        } catch (e) {
-            console.error(`[mqtt] failed to insert reading: ${e}`);
-        }
-        console.log(`[mqtt] inserted reading: ${JSON.stringify(reading)}`);
     });
     const shutdown = async () => {
         console.log(`[shutdown] stopping...`);
