@@ -17,33 +17,38 @@ export const insertSmartSocketReading = async (reading: SmartSocketReading): Pro
         ON CONFLICT(device_id, idempotency_key) DO NOTHING
     `;
 
-    const result = await pool.query(q, [
-        reading.device_id, 
-        reading.current, 
-        reading.energy, 
-        reading.energy_month, 
-        reading.energy_today, 
-        reading.energy_yesterday, 
-        reading.linkquality, 
-        reading.outlet_control_protect, 
-        reading.enable_max_voltage, 
-        reading.enable_min_current, 
-        reading.enable_min_power, 
-        reading.enable_min_voltage, 
-        reading.max_current, 
-        reading.max_power, 
-        reading.max_voltage, 
-        reading.min_current, 
-        reading.min_power, 
-        reading.min_voltage, 
-        reading.power, 
-        reading.power_on_behavior, 
-        reading.voltage, 
-        reading.received_at, 
-        reading.idempotency_key,
-        reading.label
+    try {
+        await pool.query(q, [
+            reading.device_id,
+            reading.current,
+            reading.energy,
+            reading.energy_month,
+            reading.energy_today,
+            reading.energy_yesterday,
+            reading.linkquality,
+            reading.outlet_control_protect,
+            reading.enable_max_voltage,
+            reading.enable_min_current,
+            reading.enable_min_power,
+            reading.enable_min_voltage,
+            reading.max_current,
+            reading.max_power,
+            reading.max_voltage,
+            reading.min_current,
+            reading.min_power,
+            reading.min_voltage,
+            reading.power,
+            reading.power_on_behavior,
+            reading.voltage,
+            reading.received_at,
+            reading.idempotency_key,
+            reading.label
 
-    ]);
+        ]);
+        return true;
+    } catch (e) {
+        console.error(`Failed to insert smart socket reading: ${e}`);
+        return false;
+    }
 
-    return result.rowCount === 1; // Returns true if a new row was actually inserted
 }

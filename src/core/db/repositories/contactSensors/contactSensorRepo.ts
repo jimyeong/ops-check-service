@@ -1,9 +1,9 @@
 import { pool } from "../../pool";
 import type { ContactSensorReading } from "../../../../domain/sensors/contactSensor";
 
-export async function insertContactSensorReading(Reading: ContactSensorReading ): Promise<boolean> {
+export async function insertContactSensorReading(Reading: ContactSensorReading): Promise<boolean> {
     const q = `
-        INSERT INTO contact_sensors (
+        INSERT INTO contact_sensor_readings (
             idempotency_key,
             device_id,
             battery,
@@ -17,15 +17,23 @@ export async function insertContactSensorReading(Reading: ContactSensorReading )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT(device_id, idempotency_key) DO NOTHING
     `;
-    const result = await pool.query(q, [
-        Reading.idempotency_key,
-        Reading.device_id, 
-        Reading.battery, 
-        Reading.contact, 
-        Reading.linkquality, 
-        Reading.received_at, 
-        Reading.tamper, 
-        Reading.voltage, 
-        Reading.label]);
-    return result.rowCount === 1;
+    try {
+        const result = await pool.query(q, [
+            Reading.idempotency_key,
+            Reading.device_id,
+            Reading.battery,
+            Reading.contact,
+            Reading.linkquality,
+            Reading.received_at,
+            Reading.tamper,
+            Reading.voltage,
+            Reading.label
+        ]);
+        return true
+
+    } catch (e) {
+        console.error(`Failed to insert contact sensor reading: ${e}`);
+        return false;
+    }
+
 }
