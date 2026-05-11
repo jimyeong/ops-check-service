@@ -3,7 +3,9 @@ export type JsonValue = JsonPrimitive | JsonObject | JsonArray; // | string | nu
 export type JsonObject = { [key: string]: JsonValue };
 export type JsonArray = JsonValue[];
 
-
+export type BathroomReadingPayload = HumidTempReading & {
+    last_seen: string,
+}
 export type HumidTempReading = {
     idempotency_key: string,
     device_id: bigint,
@@ -18,7 +20,7 @@ export type HumidTempReading = {
     humidity_calibration: number,
     temperature_calibration: number,
     temperature_units: "celsius" | "fahrenheit",
-    receivedAt: Date,
+    received_at: string,
     update: UpdateNotification,
 }
 export type UpdateNotification = {
