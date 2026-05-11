@@ -125,6 +125,8 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
             );
         } else if (device === Devices.TOILET_WINDOW_SENSOR) {
             const idempotency_key = crypto.createHash("sha256").update(topic + ":" + payload.last_seen).digest('hex');
+            console.log("[msg] idempotency key: ", idempotency_key);
+            console.log("[msg] topic: ", msg);
             if (!idempotency_key) {
                 console.error(`[mqtt] idempotency key not found, IGNORE the message, topci: ${topic}`);
                 return;
