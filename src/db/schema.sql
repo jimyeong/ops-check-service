@@ -116,3 +116,28 @@ INSERT INTO device_alert_states (device_id, alert_state, alert_type, last_trigge
 
 ALTER TABLE inbox_messages
 ADD CONSTRAINT inbox_messages_message_key_unique UNIQUE (message_key);
+
+
+CREATE TABLE IF NOT EXISTS power_socket_dehumidifier {
+  id BIGINT PRIMARY KEY,
+  device_id BIGINT NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  energy DOUBLE NOT NULL
+  energy_month DOUBLE NOT NULL
+  energy_today DOUBLE NOT NULL
+  energy_yesterday DOUBLE NOT NULL
+  linkquality INT NOT NULL
+  outlet_control_protect BOOLEAN NOT NULL
+  enable_max_voltage BOOLEAN NOT NULL
+  enable_min_current BOOLEAN NOT NULL
+  enable_min_power BOOLEAN NOT NULL
+  enable_min_voltage BOOLEAN NOT NULL
+  max_current DOUBLE NOT NULL
+  max_power DOUBLE NOT NULL
+  max_voltage DOUBLE NOT NULL
+  min_current DOUBLE NOT NULL
+  min_power DOUBLE NOT NULL
+  min_voltage DOUBLE NOT NULL
+  power DOUBLE NOT NULL
+  power_on_behavior TEXT NOT NULL
+  voltage DOUBLE NOT NULL
+}
