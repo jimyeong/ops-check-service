@@ -1,6 +1,6 @@
 import { updateDeviceAlertState } from "../core/db/repositories/deviceAlertStateRepo";
 import { insertOutboxEvent } from "../core/db/repositories/outboxEventRepo";
-import type { JsonObject } from "../types/json";
+import type { JsonObject } from "../domain/types";
 import { pool } from "../core/db/pool";
 import { AlertTypes } from "../constants";
 

@@ -1,6 +1,6 @@
 import "./bootstrap.ts";
 import { startMqttSubscriber } from './messaging/mqtt.client';
-import type { HumidTempReading } from './core/db/types';
+import type { HumidTempReading } from './domain/types';
 import { pool } from './core/db/pool';
 import { initApp } from './app/initApp';
 import { Devices } from './constants/index';

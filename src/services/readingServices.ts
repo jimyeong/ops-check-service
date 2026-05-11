@@ -1,4 +1,4 @@
-import type { HumidTempReading } from '../core/db/types';
+import type { HumidTempReading } from '../domain/types';
 import { getDeviceAlertState } from '../core/db/repositories/deviceAlertStateRepo';
 import { AlertTypes, OutboxEventTypes } from '../constants';
 import type { OutboxEventInput } from '../core/db/repositories/outboxEventRepo';
