@@ -4,8 +4,9 @@ import { Devices } from '../constants';
 import { insertDeviceIdentifier, getDeviceIdentifier } from '../core/db/repositories/deviceIdentifiersRepo';
 import { getDevice } from '../core/db/repositories/devicesRepo';
 import crypto from "crypto";
-import { handleBathroomHumidiyReading, handleSmartSocketReading } from '../handlers/bathroomHandlers';
-
+import { handleBathroomHumidiyReading } from '../handlers/bathroomHandlers';
+import { handleSmartSocketReading } from '../handlers/socketSensorsHandler';
+import { handleContactSensorReadingHandler } from '../handlers/contactSensorsHandler';
 export type MqttSubscriberOptions = {
     url: string;
     topics: string[]
@@ -57,14 +58,12 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                             !device.startsWith('bridge/')
                         )
                 )];
-
                 for (const deviceName of devicesToEnsure) {
                     const deviceRow = await getDevice(deviceName);
                     if (deviceRow === null) {
                         console.error(`Device not found: ${deviceName}`);
                         continue;
                     }
-
                     const existingIdentifier = await getDeviceIdentifier("topic_name", deviceName);
                     if (existingIdentifier !== null) continue;
 
@@ -73,7 +72,6 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                         "topic_name",
                         deviceName,
                     );
-
                     if (!isDuplicated) {
                         console.log(`inserted device identifier: ${deviceName}`);
                     }
@@ -125,6 +123,13 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 Devices.POWER_SOCKET_FAN,
                 onMessage
             );
+        } else if (device === Devices.TOILET_WINDOW_SENSOR) {
+            const idempotency_key = crypto.createHash("sha256").update(topic + ":" + payload.last_seen).digest('hex');
+            if (!idempotency_key) {
+                console.error(`[mqtt] idempotency key not found, IGNORE the message, topci: ${topic}`);
+                return;
+            }
+            await handleContactSensorReadingHandler(idempotency_key, topic, msg, "window sensor", Devices.TOILET_WINDOW_SENSOR, onMessage);
         }
     });
     client.on("error", (err) => {
