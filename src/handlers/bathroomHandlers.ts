@@ -10,6 +10,8 @@ import type { MqttMessageHandler } from "../messaging/mqtt.client";
 import { saveInboxMessage } from "../core/db/repositories/inboxMessagesRepo";
 import type { SmartSocketReading, SmartSocketReadingPayload } from "../domain/sensors/smartSocket";
 import { SmartSocketReadingService } from "../services/smartSocketReadingServices";
+import type { BathroomReadingPayload } from "../domain/types";
+
 export async function handleBathroomHumidiyReading(idempotency_key: string, topic, msg: string, onMessage: MqttMessageHandler) {
     try {
         const identifier = await getDeviceIdentifier("topic_name", Devices.TOILET_HUMID_TEMP_SENSOR);
@@ -18,8 +20,8 @@ export async function handleBathroomHumidiyReading(idempotency_key: string, topi
             return;
         }
         const device_id = identifier.device_id;
-        const payload: HumidTempReading = JSON.parse(msg) as HumidTempReading;
-        const receivedAt = new Date();
+        const payload = JSON.parse(msg) as BathroomReadingPayload;
+        // const receivedAt = new Date();
         const reading: HumidTempReading = {
             idempotency_key: idempotency_key,
             device_id: device_id,
@@ -27,7 +29,7 @@ export async function handleBathroomHumidiyReading(idempotency_key: string, topi
             humidity: payload.humidity,
             battery: payload.battery,
             linkquality: payload.linkquality ?? 0,
-            receivedAt: receivedAt,
+            received_at: payload.last_seen,
             comfort_humidity_min: payload.comfort_humidity_min,
             comfort_temperature_max: payload.comfort_temperature_max,
             comfort_humidity_max: payload.comfort_humidity_max,
@@ -43,7 +45,7 @@ export async function handleBathroomHumidiyReading(idempotency_key: string, topi
             enqueueOutboxService,
             transitionAlertStateAndEnqueue,
         })
-        await onMessage({ topic, payload: reading, raw: msg, receivedAt: receivedAt });
+        await onMessage({ topic, payload: reading, raw: msg, receivedAt: new Date(payload.last_seen) });
     } catch (e) {
 
         let jsonPayload: unknown;
