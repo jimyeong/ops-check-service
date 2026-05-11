@@ -1,7 +1,7 @@
 import { pool } from '../core/db/pool';
 import { ensureDeviceExists } from '../core/db/repositories/devicesRepo';
 import { insertReading } from '../core/db/repositories/sensorReadingRepo';
-import type { HumidTempReading } from '../core/db/types';
+import type { HumidTempReading } from '../domain/types';
 import { Devices } from '../constants/index';
 
 
