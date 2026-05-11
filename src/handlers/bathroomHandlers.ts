@@ -21,7 +21,10 @@ export async function handleBathroomHumidiyReading(idempotency_key: string, topi
         }
         const device_id = identifier.device_id;
         const payload = JSON.parse(msg) as BathroomReadingPayload;
-        // const receivedAt = new Date();
+        if (!payload.humidity || !payload.temperature) {
+            console.log(`[mqtt] incomplete payload, skipping`);
+            return;
+        }
         const reading: HumidTempReading = {
             idempotency_key: idempotency_key,
             device_id: device_id,
