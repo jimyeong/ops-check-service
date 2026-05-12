@@ -29,7 +29,8 @@ Instead of treating it as a one-off inconvenience, I chose to approach it as a b
 **It is** a backend system built as a study of idempotency, state transitions, and exactly-once semantics — exercised through a real-world environmental monitoring use case.
 
 ## Core Design Goals
-<img width="764" height="563" alt="Screenshot 2026-04-21 at 10 53 35" src="https://github.com/user-attachments/assets/dd1c4801-59af-44f7-bf0d-c1b351f3143d" />
+<img width="763" height="542" alt="overview" src="https://github.com/user-attachments/assets/220487b0-40ec-4a69-bbe3-140b87f1c4de" />
+
 
 
 | Goal | Approach |
