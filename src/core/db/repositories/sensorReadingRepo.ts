@@ -9,6 +9,9 @@ export async function insertReading(client: PoolClient, reading: HumidTempReadin
         if (!reading.idempotency_key) {
             throw new Error("idempotency_key is required");
         }
+        if (!reading.device_id) {
+            throw new Error("device_id is required");
+        }
         result = await client.query<HumidTempReading>(`
         INSERT INTO humid_temp_readings (
            device_id,

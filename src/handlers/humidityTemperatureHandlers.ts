@@ -15,13 +15,14 @@ import type { HumidTempReadingPayload } from "../domain/types";
 
 
 export async function handleHumidTempSensorReading(idempotency_key: string, topic: string, device: Devices, msg: string, label: string,onMessage: MqttMessageHandler) {
+
     const identifier = await getDeviceIdentifier("topic_name", device);
     try {
         if (identifier === null) {
             console.error(`Device identifier not found, IGNORE the message, topic: ${label}`);
             return;
         }
-        const device_id = identifier.deviced_id;
+        const device_id = identifier.device_id;
         const payload = JSON.parse(msg) as HumidTempReadingPayload;
         if (!payload.humidity || !payload.temperature) {
             console.log(`[mqtt] incomplete payload, skipping`);

@@ -1,5 +1,4 @@
-
-import type { DeviceIdentifier } from '../types';
+import type { DeviceIdentifier } from '../../../domain/types';
 import { pool } from '../pool';
 export const insertDeviceIdentifier = async ( device_id: bigint, id_type: string, id_value: string): Promise<boolean> => { 
     const result = await pool.query(`
