@@ -110,7 +110,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 topic,
                 Devices.TOILET_HUMID_TEMP_SENSOR,
                 msg,
-                "bathroom/bathtub_shelf",
+                SensorLabels.BATHROOM_BATHTUB_SHELF_HUMID_TEMP_SENSOR,
                 onMessage
             );
         } else if (device === Devices.TOILET_HUMID_TEMP_NEAR_WINDOW_SENSOR) {
@@ -120,7 +120,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 topic,
                 Devices.TOILET_HUMID_TEMP_NEAR_WINDOW_SENSOR,
                 msg,
-                "bathroom/near_window",
+                SensorLabels.BATHROOM_NEAR_WINDOW_HUMID_TEMP_SENSOR,
                 onMessage
             );
         } else if (device === Devices.POWER_SOCKET_DEHUMIDIFIER) {

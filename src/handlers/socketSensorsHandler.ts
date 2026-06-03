@@ -12,13 +12,10 @@ export async function handleSmartSocketReading(
     topic_name: string,
     onMessage: MqttMessageHandler
 ) {
-    console.log("[socketSensorsHandler] label: ", label);
-    
     try {
-
         const identifier = await getDeviceIdentifier("topic_name", topic_name);
         if (identifier === null) {
-            console.error(`Device identifier not found, IGNORE the message, topic: ${topic}`);
+            console.error(`Device identifier not found, IGNORE the message, topic: ${label}`);
             return;
         }
         const device_id = identifier.device_id;

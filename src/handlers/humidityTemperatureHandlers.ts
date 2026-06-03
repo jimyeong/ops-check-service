@@ -18,7 +18,7 @@ export async function handleHumidTempSensorReading(idempotency_key: string, topi
     const identifier = await getDeviceIdentifier("topic_name", device);
     try {
         if (identifier === null) {
-            console.error(`Device identifier not found, IGNORE the message, topic: ${topic}`);
+            console.error(`Device identifier not found, IGNORE the message, topic: ${label}`);
             return;
         }
         const device_id = identifier.deviced_id;
