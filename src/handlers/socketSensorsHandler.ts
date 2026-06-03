@@ -6,7 +6,7 @@ import { SmartSocketReadingService } from "../services/smartSocketReadingService
 
 export async function handleSmartSocketReading(
     idempotency_key: string,
-    topic,
+    topic: string,
     msg: string,
     label: string,
     topic_name: string,

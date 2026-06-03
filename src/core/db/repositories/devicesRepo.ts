@@ -1,4 +1,4 @@
-import type { Devices } from '../types';
+import type { Devices } from '../../../domain/types';
 import type { QueryResult, PoolClient } from 'pg'; 
 import { pool } from '../pool';
 export async function ensureDeviceExists(client: PoolClient, device_id: bigint, device_type: string, display_name: string, name: string) {

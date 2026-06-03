@@ -5,7 +5,7 @@ import type { ContactSensorPayload } from "../domain/sensors/contactSensor";
 
 export async function handleContactSensorReadingHandler(
     idempotency_key: string,
-    topic,
+    topic: string,
     msg: string,
     label: string,
     topic_name: string,
