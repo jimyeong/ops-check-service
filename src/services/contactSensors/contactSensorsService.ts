@@ -17,6 +17,9 @@ export async function contactSensorsService(idempotency_key: string, device_id: 
             voltage: payload.voltage,
             label: label
         };
+        if (label === "bathroom/near_window") {
+
+        }
         await insertContactSensorReading(reading);
         return reading;
     } catch (e) {
