@@ -27,7 +27,7 @@ export async function handleHumidTempSensorReading(idempotency_key: string, topi
             console.log(`[mqtt] incomplete payload, skipping`);
             return;
         }
-        console.log("[handleHumidTempSensorReading] label: ", label);
+        // console.log("[handleHumidTempSensorReading] label: ", label);
         const reading: HumidTempReading = {
             idempotency_key: idempotency_key,
             device_id: device_id,
