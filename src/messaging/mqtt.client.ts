@@ -84,15 +84,15 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         });
     })
     client.on("message", async (topic, message) => {
-
-        console.log("[RAW] got message on topic:", topic);
-        console.log("[RAW] payload:", message.toString());
         // filterings
         if (!topic.startsWith('zigbee2mqtt/')) return;
         if (topic.endsWith('/bridge/state')) return;
         if (topic.endsWith('/bridge/info')) return;
         if (topic.endsWith('/bridge/devices')) return;
         const device = topic.substring('zigbee2mqtt/'.length).trim();
+
+        console.log("[RAW] got message on topic:", topic);
+        console.log("[RAW] payload:", message.toString());
 
         // add devices
         if (device !== Devices.TOILET_HUMID_TEMP_SENSOR &&
@@ -103,6 +103,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         ) return;
         const msg = message.toString("utf-8");
         const payload = JSON.parse(msg);
+
         if (device === Devices.TOILET_HUMID_TEMP_SENSOR) {
             const idempotency_key = crypto.createHash("sha256").update(topic + ":" + msg).digest('hex');
             await handleHumidTempSensorReading(
