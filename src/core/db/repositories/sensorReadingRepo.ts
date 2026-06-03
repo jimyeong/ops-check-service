@@ -1,4 +1,4 @@
-import type { HumidTempReading } from '../types';
+import type { HumidTempReading } from '../../../domain/types';
 import type { PoolClient, QueryResult } from 'pg';
 import { pool } from '../pool';
 import { RECENT_READINGS_INTERVAL, MIN_RECENT_READINGS, HIGH_HUMIDITY_THRESHOLD, HIGH_RATIO_THRESHOLD } from '../../../constants/index';
@@ -24,9 +24,10 @@ export async function insertReading(client: PoolClient, reading: HumidTempReadin
            temperature_calibration,
            temperature_units,
            received_at,
+           label,
            idempotency_key
         )
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,$15)
            ON CONFLICT(device_id, idempotency_key) DO NOTHING
            RETURNING *
    `, [
@@ -42,7 +43,8 @@ export async function insertReading(client: PoolClient, reading: HumidTempReadin
             reading.humidity_calibration,
             reading.temperature_calibration,
             reading.temperature_units ?? null,
-            reading.receivedAt ?? new Date(),
+            reading.received_at,
+            reading.label,
             reading.idempotency_key,
         ]);
     } catch (e) {

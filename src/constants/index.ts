@@ -12,17 +12,23 @@ Please consider ventilating the area or turning on a dehumidifier.
 `
 
 
-
+export const enum SensorLabels {
+    BATHROOM_WINDOW_CONTACT_SENSOR = "bathroom/window-contact-sensor",
+    BATHROOM_FAN_SOCKET = "bathroom/fan-socket",
+    UNIVERSAL_DEHUMIDIFIER_SOCKET = "universal/dehumidifier-socket",
+    BATHROOM_BATHTUB_SHELF_HUMID_TEMP_SENSOR = "bathroom/bathtub_shelf_humid_temp_sensor",
+    BATHROOM_NEAR_WINDOW_HUMID_TEMP_SENSOR = "bathroom/near_window_humid_temp_sensor",
+}
 
 
 export const enum Devices {
     TOILET_HUMID_TEMP_SENSOR = `0x8c73dafffec86b53`,
+    TOILET_HUMID_TEMP_NEAR_WINDOW_SENSOR = '0xa4c13809b2b9ffff',
     POWER_SOCKET_DEHUMIDIFIER = `0xa4c138096415ffff`,
     POWER_SOCKET_FAN = `0xa4c1380b8a7cffff`,
     TOILET_WINDOW_SENSOR = `0x983268fffe652a62`
-
-
 }
+
 export const enum AlertTypes {
     HUMIDITY_SENSOR_ALERT = `humidity_sensor_alert`,
     POWER_SOCKET_DEHUMIDIFIER_ALERT = `power_socket_airfryer_alert`,

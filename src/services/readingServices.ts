@@ -30,7 +30,7 @@ export async function handleReading(
       humidity: reading.humidity.toString(),
       battery: reading.battery.toString(),
       linkquality: reading.linkquality.toString(),
-      receivedAt: reading.receivedAt.toISOString(),
+      receivedAt: reading.received_at.toString(),
     },
     idempotency_key: idempotency_key,
     attempts: 0,

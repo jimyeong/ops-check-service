@@ -1,12 +1,13 @@
 import mqtt from 'mqtt';
 import type { MqttClient, IClientOptions } from 'mqtt';
-import { Devices } from '../constants';
+import { Devices, SensorLabels } from '../constants';
 import { insertDeviceIdentifier, getDeviceIdentifier } from '../core/db/repositories/deviceIdentifiersRepo';
 import { getDevice } from '../core/db/repositories/devicesRepo';
 import crypto from "crypto";
-import { handleBathroomHumidiyReading } from '../handlers/bathroomHandlers';
+import { handleBathroomHumidiyReading, handleHumidTempSensorReading } from '../handlers/humidityTemperatureHandlers';
 import { handleSmartSocketReading } from '../handlers/socketSensorsHandler';
 import { handleContactSensorReadingHandler } from '../handlers/contactSensorsHandler';
+
 export type MqttSubscriberOptions = {
     url: string;
     topics: string[]
@@ -25,7 +26,8 @@ const sensorsToSubscribe = [
     Devices.TOILET_HUMID_TEMP_SENSOR,
     Devices.POWER_SOCKET_DEHUMIDIFIER,
     Devices.POWER_SOCKET_FAN,
-    Devices.TOILET_WINDOW_SENSOR
+    Devices.TOILET_WINDOW_SENSOR,
+    Devices.TOILET_HUMID_TEMP_NEAR_WINDOW_SENSOR
 ]
 export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: MqttMessageHandler): { client: MqttClient; stop: () => Promise<void> } {
     const client = mqtt.connect(options.url, {
@@ -96,12 +98,31 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         if (device !== Devices.TOILET_HUMID_TEMP_SENSOR &&
             device !== Devices.POWER_SOCKET_DEHUMIDIFIER &&
             device !== Devices.POWER_SOCKET_FAN &&
-            device !== Devices.TOILET_WINDOW_SENSOR) return;
+            device !== Devices.TOILET_WINDOW_SENSOR &&
+            device !== Devices.TOILET_HUMID_TEMP_NEAR_WINDOW_SENSOR
+        ) return;
         const msg = message.toString("utf-8");
         const payload = JSON.parse(msg);
         if (device === Devices.TOILET_HUMID_TEMP_SENSOR) {
             const idempotency_key = crypto.createHash("sha256").update(topic + ":" + msg).digest('hex');
-            await handleBathroomHumidiyReading(idempotency_key, topic, msg, onMessage);
+            await handleHumidTempSensorReading(
+                idempotency_key,
+                topic,
+                Devices.TOILET_HUMID_TEMP_SENSOR,
+                msg,
+                "bathroom/bathtub_shelf",
+                onMessage
+            );
+        } else if (device === Devices.TOILET_HUMID_TEMP_NEAR_WINDOW_SENSOR) {
+            const idempotency_key = crypto.createHash("sha256").update(topic + ":" + msg).digest('hex');
+            await handleHumidTempSensorReading(
+                idempotency_key,
+                topic,
+                Devices.TOILET_HUMID_TEMP_NEAR_WINDOW_SENSOR,
+                msg,
+                "bathroom/near_window",
+                onMessage
+            );
         } else if (device === Devices.POWER_SOCKET_DEHUMIDIFIER) {
 
             const idempotency_key = crypto.createHash("sha256").update(topic + ":" + payload.last_seen).digest('hex');
@@ -109,7 +130,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 idempotency_key,
                 topic,
                 msg,
-                "dehumidifier",
+                SensorLabels.UNIVERSAL_DEHUMIDIFIER_SOCKET,
                 Devices.POWER_SOCKET_DEHUMIDIFIER,
                 onMessage
             );
@@ -119,7 +140,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 idempotency_key,
                 topic,
                 msg,
-                "fan",
+                SensorLabels.BATHROOM_FAN_SOCKET,
                 Devices.POWER_SOCKET_FAN,
                 onMessage
             );
@@ -133,7 +154,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 idempotency_key,
                 topic,
                 msg,
-                "window sensor",
+                SensorLabels.BATHROOM_WINDOW_CONTACT_SENSOR,
                 Devices.TOILET_WINDOW_SENSOR,
                 onMessage
             );

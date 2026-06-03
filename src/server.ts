@@ -29,13 +29,13 @@ const initDB = async () => {
 
 async function main() {
     const app = initApp(); // app starts here
-    const rabbitMQClient = await rabbitMQInit()
-    app.decorate('amqp', { connection: rabbitMQClient.connection, channel: rabbitMQClient.channel })
+    // const rabbitMQClient = await rabbitMQInit()
+    // app.decorate('amqp', { connection: rabbitMQClient.connection, channel: rabbitMQClient.channel })
     await app.listen({ port: PORT, host: "0.0.0.0" });
     console.log(`[http] listening on port ${PORT}`);
     await initDB() // db connection established here
 
-    startOutboxWorker(pool, rabbitMQClient as unknown as RabbitMQClientType); // worker starts here
+    // startOutboxWorker(pool, rabbitMQClient as unknown as RabbitMQClientType); // worker starts here
 
     // to use 'fastify.amqp' available in all your routes
 
@@ -52,8 +52,8 @@ async function main() {
         console.log(`[shutdown] stopping...`);
         await stop();
         await app.close();
-        await rabbitMQClient.connection.close();
-        await rabbitMQClient.channel.close();
+        // await rabbitMQClient.connection.close();
+        // await rabbitMQClient.channel.close();
         process.exit(0);
     }
     process.on("SIGINT", shutdown);
