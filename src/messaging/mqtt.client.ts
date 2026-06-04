@@ -22,12 +22,14 @@ export type MqttMessageHandler = (args: {
     raw: string
     receivedAt: Date;
 }) => Promise<void> | void;
-const sensorsToSubscribe = [
+const ravensToSubscribe = [
     Devices.TOILET_HUMID_TEMP_SENSOR,
     Devices.POWER_SOCKET_DEHUMIDIFIER,
     Devices.POWER_SOCKET_FAN,
     Devices.TOILET_WINDOW_SENSOR,
-    Devices.TOILET_HUMID_TEMP_NEAR_WINDOW_SENSOR
+    Devices.TOILET_HUMID_TEMP_NEAR_WINDOW_SENSOR,
+    'ravens/weather/outdoor'
+
 ]
 export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: MqttMessageHandler): { client: MqttClient; stop: () => Promise<void> } {
     const client = mqtt.connect(options.url, {
@@ -38,7 +40,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         clean: false,
     } as IClientOptions);
     client.on('connect', async () => {
-        const topicsToSubscribe = (options.topics?.length ? options.topics : sensorsToSubscribe);
+        const topicsToSubscribe = (options.topics?.length ? options.topics : [...ravensToSubscribe]);
         client.subscribe(topicsToSubscribe, { qos: 1 }, async (err, granted) => {
             if (err) {
                 console.error(`Failed to subscribe to topics ${topicsToSubscribe.join(", ")}: ${err}`);
@@ -87,7 +89,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         console.log("[RAW] got message on topic:", topic);
         console.log("[RAW] payload:", message.toString());
         // filterings
-        if (!topic.startsWith(Topics.ZIGBEE2MQTT)) return;
+        if (!topic.startsWith(Topics.ZIGBEE2MQTT) && !topic.startsWith(Topics.OPSCHECK)) return;
         if (topic.endsWith('/bridge/state')) return;
         if (topic.endsWith('/bridge/info')) return;
         if (topic.endsWith('/bridge/devices')) return;
