@@ -42,3 +42,17 @@ export const enum OutboxEventTypes {
     AMQP_PUBLISH = `amqp_publish`,
     SNS_PUBLISH = `sns_publish`,
 }
+export const enum EventTypes {
+    FAN_ON = `fan/on`,
+    FAN_OFF = `fan/off`,
+    AMQP_PUBLISH = `amqp_publish`,
+    SNS_PUBLISH = `sns_publish`,
+}
+export const enum Topics {
+    ZIGBEE2MQTT = `zigbee2mqtt/`,
+    OPSCHECK = `opscheck/`,
+}
+export const enum PublishTopics {
+    FAN_ON = `opscheck/events/fan/on`,
+    FAN_OFF = `opscheck/events/fan/off`,
+}

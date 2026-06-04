@@ -1,6 +1,6 @@
 import mqtt from 'mqtt';
 import type { MqttClient, IClientOptions } from 'mqtt';
-import { Devices, SensorLabels } from '../constants';
+import { Devices, EventTypes, SensorLabels, Topics } from '../constants';
 import { insertDeviceIdentifier, getDeviceIdentifier } from '../core/db/repositories/deviceIdentifiersRepo';
 import { getDevice } from '../core/db/repositories/devicesRepo';
 import crypto from "crypto";
@@ -85,15 +85,14 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
     })
     client.on("message", async (topic, message) => {
         // filterings
-        if (!topic.startsWith('zigbee2mqtt/')) return;
+        if (!topic.startsWith(Topics.ZIGBEE2MQTT) || !topic.startsWith(Topics.OPSCHECK)) return;
         if (topic.endsWith('/bridge/state')) return;
         if (topic.endsWith('/bridge/info')) return;
         if (topic.endsWith('/bridge/devices')) return;
-        const device = topic.substring('zigbee2mqtt/'.length).trim();
 
+        const device = topic.substring(Topics.ZIGBEE2MQTT.length).trim();
         console.log("[RAW] got message on topic:", topic);
         console.log("[RAW] payload:", message.toString());
-
         // add devices
         if (device !== Devices.TOILET_HUMID_TEMP_SENSOR &&
             device !== Devices.POWER_SOCKET_DEHUMIDIFIER &&
@@ -137,14 +136,16 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
             );
         } else if (device === Devices.POWER_SOCKET_FAN) {
             const idempotency_key = crypto.createHash("sha256").update(topic + ":" + payload.last_seen).digest('hex');
+
             await handleSmartSocketReading(
                 idempotency_key,
                 topic,
                 msg,
                 SensorLabels.BATHROOM_FAN_SOCKET,
                 Devices.POWER_SOCKET_FAN,
-                onMessage
+                onMessage,
             );
+
         } else if (device === Devices.TOILET_WINDOW_SENSOR) {
             const idempotency_key = crypto.createHash("sha256").update(topic + ":" + payload.last_seen).digest('hex');
             if (!idempotency_key) {
@@ -157,9 +158,12 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
                 msg,
                 SensorLabels.BATHROOM_WINDOW_CONTACT_SENSOR,
                 Devices.TOILET_WINDOW_SENSOR,
-                onMessage
+                onMessage,
+                client
             );
         }
+
+
     });
     client.on("error", (err) => {
         console.error(`[MQTT] error: `, err);
