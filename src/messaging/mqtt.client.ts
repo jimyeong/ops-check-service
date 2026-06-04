@@ -7,6 +7,7 @@ import crypto from "crypto";
 import { handleBathroomHumidiyReading, handleHumidTempSensorReading } from '../handlers/humidityTemperatureHandlers';
 import { handleSmartSocketReading } from '../handlers/socketSensorsHandler';
 import { handleContactSensorReadingHandler } from '../handlers/contactSensorsHandler';
+import { handleWeatherRaven } from "../handlers/ravenHandlers/weatherRavenHandler.ts"
 
 export type MqttSubscriberOptions = {
     url: string;
@@ -22,11 +23,7 @@ export type MqttMessageHandler = (args: {
     receivedAt: Date;
 }) => Promise<void> | void;
 const ravensToSubscribe = [
-    Devices.TOILET_HUMID_TEMP_SENSOR,
-    Devices.POWER_SOCKET_DEHUMIDIFIER,
-    Devices.POWER_SOCKET_FAN,
-    Devices.TOILET_WINDOW_SENSOR,
-    Devices.TOILET_HUMID_TEMP_NEAR_WINDOW_SENSOR,
+    'zigbee2mqtt/#',
     'ravens/weather/outdoor'
 ]
 export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: MqttMessageHandler): { client: MqttClient; stop: () => Promise<void> } {
@@ -35,7 +32,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         username: options.username,
         password: options.password,
         reconnectPeriod: 2000,
-        clean: true,
+        clean: false,
     } as IClientOptions);
     client.on('connect', async () => {
         const topicsToSubscribe = ravensToSubscribe
@@ -94,9 +91,8 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
 
         if (topic.startsWith(Topics.RAVENS)) {
             console.log("[RAVENS] got message on topic:", topic);
-            console.log("[RAVENS] payload:", message.toString());
-
-
+            console.log("[RAVENS] payload:", message.toString("utf-8"));
+            await handleWeatherRaven(message.toString("utf-8"));
         }
 
         const device = topic.substring(Topics.ZIGBEE2MQTT.length).trim();
