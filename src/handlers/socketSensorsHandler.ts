@@ -10,7 +10,7 @@ export async function handleSmartSocketReading(
     msg: string,
     label: string,
     topic_name: string,
-    onMessage: MqttMessageHandler
+    onMessage: MqttMessageHandler,
 ) {
     try {
         const identifier = await getDeviceIdentifier("topic_name", topic_name);
