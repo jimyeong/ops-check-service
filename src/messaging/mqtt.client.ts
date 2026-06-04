@@ -93,6 +93,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
             console.log("[RAVENS] got message on topic:", topic);
             console.log("[RAVENS] payload:", message.toString("utf-8"));
             await handleWeatherRaven(message.toString("utf-8"));
+            return;
         }
 
         const device = topic.substring(Topics.ZIGBEE2MQTT.length).trim();
