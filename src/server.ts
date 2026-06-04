@@ -12,11 +12,6 @@ import type { RabbitMQClientType } from './core/rabbitMQ/client';
 
 const PORT = Number(process.env.PORT ?? 3000);
 const MQTT_URL = process.env.MQTT_URL ?? "mqtt://localhost:1883"
-const MQTT_TOPICS = (process.env.MQTT_TOPICS ?? "zigbee2mqtt/#")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-// const MQTT_TOPICS = ["zigbee2mqtt/toilet_humid_temp_sensor"];
 const initDB = async () => {
     try {
         await pool.query("SELECT 1");
@@ -41,7 +36,6 @@ async function main() {
 
     const { stop } = startMqttSubscriber({
         url: MQTT_URL,
-        topics: MQTT_TOPICS,
     }, async ({ topic, payload, raw, receivedAt }) => {
         console.log(`[mqtt] topic: ${topic}`);
         console.log(`[mqtt] payload: ${JSON.stringify(payload)}`);
