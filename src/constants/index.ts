@@ -50,7 +50,7 @@ export const enum EventTypes {
 }
 export const enum Topics {
     ZIGBEE2MQTT = `zigbee2mqtt/`,
-    OPSCHECK = `opscheck/`,
+    RAVENS = `ravens/`,
 }
 export const enum PublishTopics {
     FAN_ON = `opscheck/events/fan/on`,
