@@ -89,7 +89,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         console.log("[RAW] got message on topic:", topic);
         console.log("[RAW] payload:", message.toString());
         // filterings
-        if (!topic.startsWith(Topics.ZIGBEE2MQTT) && !topic.startsWith(Topics.OPSCHECK)) return;
+        if (!topic.startsWith(Topics.ZIGBEE2MQTT) && !topic.startsWith(Topics.RAVENS)) return;
         if (topic.endsWith('/bridge/state')) return;
         if (topic.endsWith('/bridge/info')) return;
         if (topic.endsWith('/bridge/devices')) return;
