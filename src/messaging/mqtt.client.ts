@@ -37,7 +37,7 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         username: options.username,
         password: options.password,
         reconnectPeriod: 2000,
-        clean: false,
+        clean: true,
     } as IClientOptions);
     client.on('connect', async () => {
         const topicsToSubscribe = (options.topics?.length ? options.topics : [...ravensToSubscribe]);
