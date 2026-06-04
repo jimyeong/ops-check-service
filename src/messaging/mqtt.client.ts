@@ -10,7 +10,6 @@ import { handleContactSensorReadingHandler } from '../handlers/contactSensorsHan
 
 export type MqttSubscriberOptions = {
     url: string;
-    topics: string[]
     clientId?: string;
     username?: string
     password?: string
@@ -29,7 +28,6 @@ const ravensToSubscribe = [
     Devices.TOILET_WINDOW_SENSOR,
     Devices.TOILET_HUMID_TEMP_NEAR_WINDOW_SENSOR,
     'ravens/weather/outdoor'
-
 ]
 export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: MqttMessageHandler): { client: MqttClient; stop: () => Promise<void> } {
     const client = mqtt.connect(options.url, {
@@ -40,8 +38,8 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         clean: true,
     } as IClientOptions);
     client.on('connect', async () => {
-        const topicsToSubscribe = (options.topics?.length ? options.topics : [...ravensToSubscribe]);
-        client.subscribe(topicsToSubscribe, { qos: 1 }, async (err, granted) => {
+        const topicsToSubscribe = ravensToSubscribe
+        client.subscribe(ravensToSubscribe, { qos: 1 }, async (err, granted) => {
             if (err) {
                 console.error(`Failed to subscribe to topics ${topicsToSubscribe.join(", ")}: ${err}`);
                 client.emit("error", err);
@@ -93,6 +91,13 @@ export function startMqttSubscriber(options: MqttSubscriberOptions, onMessage: M
         if (topic.endsWith('/bridge/state')) return;
         if (topic.endsWith('/bridge/info')) return;
         if (topic.endsWith('/bridge/devices')) return;
+
+        if (topic.startsWith(Topics.RAVENS)) {
+            console.log("[RAVENS] got message on topic:", topic);
+            console.log("[RAVENS] payload:", message.toString());
+
+
+        }
 
         const device = topic.substring(Topics.ZIGBEE2MQTT.length).trim();
 
